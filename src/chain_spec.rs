@@ -1,5 +1,5 @@
 use primitives::{Pair, Public};
-use node_template_runtime::{
+use stateless_blockchain_runtime::{
 	AccountId, BabeConfig, BalancesConfig, GenesisConfig, GrandpaConfig,
 	SudoConfig, IndicesConfig, SystemConfig, WASM_BINARY, 
 };

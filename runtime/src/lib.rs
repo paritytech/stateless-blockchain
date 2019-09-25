@@ -24,8 +24,11 @@ use client::{
 	runtime_api as client_api, impl_runtime_apis
 };
 use version::RuntimeVersion;
+use primitive_types::U256;
+use runtime_io;
 #[cfg(feature = "std")]
 use version::NativeVersion;
+
 
 // A few exports that help ease life for downstream crates.
 #[cfg(any(feature = "std", test))]
@@ -61,8 +64,8 @@ pub type Hash = primitives::H256;
 /// Digest item type.
 pub type DigestItem = generic::DigestItem<Hash>;
 
-/// Used for the module template in `./template.rs`
-mod template;
+/// Used for the module template in `./stateless.rs`
+mod stateless;
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -94,8 +97,8 @@ pub mod opaque {
 
 /// This runtime version.
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: create_runtime_str!("node-template"),
-	impl_name: create_runtime_str!("node-template"),
+	spec_name: create_runtime_str!("stateless-blockchain"),
+	impl_name: create_runtime_str!("stateless-blockchain"),
 	authoring_version: 3,
 	spec_version: 4,
 	impl_version: 4,
@@ -252,9 +255,14 @@ impl sudo::Trait for Runtime {
 	type Proposal = Call;
 }
 
-/// Used for the module template in `./template.rs`
-impl template::Trait for Runtime {
+parameter_types! {
+	pub const RsaModulus:U256 = U256::from(13);
+}
+
+/// Used for the module template in `./stateless.rs`
+impl stateless::Trait for Runtime {
 	type Event = Event;
+    type RsaModulus = RsaModulus;
 }
 
 construct_runtime!(
@@ -270,8 +278,8 @@ construct_runtime!(
 		Indices: indices::{default, Config<T>},
 		Balances: balances,
 		Sudo: sudo,
-		// Used for the module template in `./template.rs`
-		TemplateModule: template::{Module, Call, Storage, Event<T>},
+		// Used for the module template in `./stateless.rs`
+		Stateless: stateless::{Module, Call, Storage, Event<T>, RsaModulus},
 	}
 );
 
@@ -324,10 +332,17 @@ impl_runtime_apis! {
 
 	impl block_builder_api::BlockBuilder<Block> for Runtime {
 		fn apply_extrinsic(extrinsic: <Block as BlockT>::Extrinsic) -> ApplyResult {
+			use support::IsSubType;
+
+            if let Some(&stateless::Call::spend(ref elem, ref witness)) = IsSubType::<stateless::Module<Runtime>, Runtime>::is_sub_type(&extrinsic.function) {
+
+            }
+
 			Executive::apply_extrinsic(extrinsic)
 		}
 
 		fn finalize_block() -> <Block as BlockT>::Header {
+			// Executive::apply_extrinsic(Aggregator::get_extrinsic());
 			Executive::finalize_block()
 		}
 
