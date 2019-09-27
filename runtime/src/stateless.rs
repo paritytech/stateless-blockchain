@@ -15,25 +15,25 @@ pub trait Trait: system::Trait {
 }
 
 decl_storage! {
-	trait Store for Module<T: Trait> as Stateless {
-	    State get(get_state): U256 = U256::from(2);  // Use 2 as an arbitrary generator with "unknown" order.
-	    SpentCoins get(get_spent_coins): Vec<(U256, U256)>;
-	}
+    trait Store for Module<T: Trait> as Stateless {
+        State get(get_state): U256 = U256::from(2);  // Use 2 as an arbitrary generator with "unknown" order.
+        SpentCoins get(get_spent_coins): Vec<(U256, U256)>;
+    }
 }
 
 decl_module! {
 	/// The module declaration.
-	pub struct Module<T: Trait> for enum Call where origin: T::Origin {
-	    // Initialize generic event
-	    fn deposit_event() = default;
+    pub struct Module<T: Trait> for enum Call where origin: T::Origin {
+        // Initialize generic event
+        fn deposit_event() = default;
 	    // Declare RSA modulus constant
 	    // const RsaModulus: U256 = T::RsaModulus::get();
 
-	    /// Receive request to spend a coin.
-	    pub fn spend(origin, elem: U256, witness: U256) -> Result {
-		    ensure_signed(origin)?;
-		    Ok(())
-		}
+        /// Receive request to spend a coin.
+        pub fn spend(origin, elem: U256, witness: U256) -> Result {
+            ensure_signed(origin)?;
+            Ok(())
+        }
 
         /// Batch delete spent coins on block finalization
         fn on_finalize() {
@@ -41,7 +41,7 @@ decl_module! {
             State::put(state);
             SpentCoins::mutate(|n| n.clear());
         }
-	}
+    }
 }
 
 impl<T: Trait> Module<T> {
