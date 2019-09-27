@@ -11,10 +11,10 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 use rstd::prelude::*;
 use primitives::{OpaqueMetadata, crypto::key_types};
 use sr_primitives::{
-	ApplyResult, transaction_validity::TransactionValidity, generic, create_runtime_str,
+	ApplyResult, ApplyOutcome, transaction_validity::TransactionValidity, generic, create_runtime_str,
 	impl_opaque_keys, AnySignature
 };
-use sr_primitives::traits::{NumberFor, BlakeTwo256, Block as BlockT, DigestFor, StaticLookup, Verify, ConvertInto};
+use sr_primitives::traits::{NumberFor, BlakeTwo256, Block as BlockT, DigestFor, StaticLookup, Verify, ConvertInto, OnFinalize};
 use sr_primitives::weights::Weight;
 use babe::{AuthorityId as BabeId};
 use grandpa::{AuthorityId as GrandpaId, AuthorityWeight as GrandpaWeight};
@@ -25,7 +25,6 @@ use client::{
 };
 use version::RuntimeVersion;
 use primitive_types::U256;
-use runtime_io;
 #[cfg(feature = "std")]
 use version::NativeVersion;
 
@@ -256,7 +255,7 @@ impl sudo::Trait for Runtime {
 }
 
 parameter_types! {
-	pub const RsaModulus:U256 = U256::from(13);
+	pub const RsaModulus:U256 = U256::from(13);  // Super arbitrary at the moment
 }
 
 /// Used for the module template in `./stateless.rs`
@@ -278,7 +277,6 @@ construct_runtime!(
 		Indices: indices::{default, Config<T>},
 		Balances: balances,
 		Sudo: sudo,
-		// Used for the module template in `./stateless.rs`
 		Stateless: stateless::{Module, Call, Storage, Event<T>, RsaModulus},
 	}
 );
@@ -331,18 +329,16 @@ impl_runtime_apis! {
 	}
 
 	impl block_builder_api::BlockBuilder<Block> for Runtime {
+	    // FIX: Doesn't actually go through aggregation function.
 		fn apply_extrinsic(extrinsic: <Block as BlockT>::Extrinsic) -> ApplyResult {
 			use support::IsSubType;
-
-            if let Some(&stateless::Call::spend(ref elem, ref witness)) = IsSubType::<stateless::Module<Runtime>, Runtime>::is_sub_type(&extrinsic.function) {
-
+            if let Some(&stateless::Call::spend(elem, witness)) = IsSubType::<stateless::Module<Runtime>, Runtime>::is_sub_type(&extrinsic.function) {
+                return <stateless::Module<Runtime>>::add_spent_coin(elem, witness);
             }
-
-			Executive::apply_extrinsic(extrinsic)
+            Executive::apply_extrinsic(extrinsic)
 		}
 
 		fn finalize_block() -> <Block as BlockT>::Header {
-			// Executive::apply_extrinsic(Aggregator::get_extrinsic());
 			Executive::finalize_block()
 		}
 
