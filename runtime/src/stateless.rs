@@ -10,30 +10,29 @@ use sr_primitives::{ApplyResult, ApplyOutcome};
 use accumulator;
 
 pub trait Trait: system::Trait {
-	type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
-	type RsaModulus: Get<U256>;
+    type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
+    type RsaModulus: Get<U256>;
 }
 
 decl_storage! {
 	trait Store for Module<T: Trait> as Stateless {
-		State get(get_state): U256 = U256::from(2);  // Use 2 as an arbitrary generator with "unknown" order.
-		SpentCoins get(get_spent_coins): Vec<(U256, U256)>;
+	    State get(get_state): U256 = U256::from(2);  // Use 2 as an arbitrary generator with "unknown" order.
+	    SpentCoins get(get_spent_coins): Vec<(U256, U256)>;
 	}
 }
 
 decl_module! {
 	/// The module declaration.
 	pub struct Module<T: Trait> for enum Call where origin: T::Origin {
-		// Initialize generic event
-		fn deposit_event() = default;
+	    // Initialize generic event
+	    fn deposit_event() = default;
+	    // Declare RSA modulus constant
+	    // const RsaModulus: U256 = T::RsaModulus::get();
 
-		// Declare RSA modulus constant
-		const RsaModulus: U256 = T::RsaModulus::get();
-
-		/// Receive request to spend a coin.
-		pub fn spend(origin, elem: U256, witness: U256) -> Result {
-			ensure_signed(origin)?;
-			Ok(())
+	    /// Receive request to spend a coin.
+	    pub fn spend(origin, elem: U256, witness: U256) -> Result {
+		    ensure_signed(origin)?;
+		    Ok(())
 		}
 
         /// Batch delete spent coins on block finalization
@@ -92,98 +91,98 @@ impl<T: Trait> Module<T> {
 }
 
 decl_event!(
-	pub enum Event<T> where AccountId = <T as system::Trait>::AccountId {
-		SomethingStored(u32, AccountId),
-	}
+    pub enum Event<T> where AccountId = <T as system::Trait>::AccountId {
+        SomethingStored(u32, AccountId),
+    }
 );
 
 /// tests for this module
 #[cfg(test)]
 mod tests {
-	use super::*;
+    use super::*;
 
-	use runtime_io::with_externalities;
-	use primitives::{H256, Blake2Hasher};
-	use support::{impl_outer_origin, assert_ok, parameter_types};
-	use sr_primitives::{traits::{BlakeTwo256, IdentityLookup, OnFinalize}, testing::Header};
-	use sr_primitives::weights::Weight;
-	use sr_primitives::Perbill;
+    use runtime_io::with_externalities;
+    use primitives::{H256, Blake2Hasher};
+    use support::{impl_outer_origin, assert_ok, parameter_types};
+    use sr_primitives::{traits::{BlakeTwo256, IdentityLookup, OnFinalize}, testing::Header};
+    use sr_primitives::weights::Weight;
+    use sr_primitives::Perbill;
 
-	impl_outer_origin! {
-		pub enum Origin for Test {}
-	}
+    impl_outer_origin! {
+	    pub enum Origin for Test {}
+    }
 
-	// For testing the module, we construct most of a mock runtime. This means
-	// first constructing a configuration type (`Test`) which `impl`s each of the
-	// configuration traits of modules we want to use.
-	#[derive(Clone, Eq, PartialEq)]
-	pub struct Test;
-	parameter_types! {
-		pub const BlockHashCount: u64 = 250;
-		pub const MaximumBlockWeight: Weight = 1024;
-		pub const MaximumBlockLength: u32 = 2 * 1024;
-		pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
-		pub const RsaModulus: U256 = U256::from(13);
-	}
+    // For testing the module, we construct most of a mock runtime. This means
+    // first constructing a configuration type (`Test`) which `impl`s each of the
+    // configuration traits of modules we want to use.
+    #[derive(Clone, Eq, PartialEq)]
+    pub struct Test;
+    parameter_types! {
+        pub const BlockHashCount: u64 = 250;
+        pub const MaximumBlockWeight: Weight = 1024;
+        pub const MaximumBlockLength: u32 = 2 * 1024;
+        pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
+        pub const RsaModulus: U256 = U256::from(13);
+    }
 
-	impl system::Trait for Test {
-		type Origin = Origin;
-		type Call = ();
-		type Index = u64;
-		type BlockNumber = u64;
-		type Hash = H256;
-		type Hashing = BlakeTwo256;
-		type AccountId = u64;
-		type Lookup = IdentityLookup<Self::AccountId>;
-		type Header = Header;
-		type WeightMultiplierUpdate = ();
-		type Event = ();
-		type BlockHashCount = BlockHashCount;
-		type MaximumBlockWeight = MaximumBlockWeight;
-		type MaximumBlockLength = MaximumBlockLength;
-		type AvailableBlockRatio = AvailableBlockRatio;
-		type Version = ();
-	}
+    impl system::Trait for Test {
+        type Origin = Origin;
+        type Call = ();
+        type Index = u64;
+        type BlockNumber = u64;
+        type Hash = H256;
+        type Hashing = BlakeTwo256;
+        type AccountId = u64;
+        type Lookup = IdentityLookup<Self::AccountId>;
+        type Header = Header;
+        type WeightMultiplierUpdate = ();
+        type Event = ();
+        type BlockHashCount = BlockHashCount;
+        type MaximumBlockWeight = MaximumBlockWeight;
+        type MaximumBlockLength = MaximumBlockLength;
+        type AvailableBlockRatio = AvailableBlockRatio;
+        type Version = ();
+    }
 
-	impl Trait for Test {
-		type Event = ();
-		type RsaModulus = RsaModulus;
-	}
+    impl Trait for Test {
+        type Event = ();
+        type RsaModulus = RsaModulus;
+    }
 
-	type Stateless = Module<Test>;
+    type Stateless = Module<Test>;
     type System = system::Module<Test>;
 
-	// This function basically just builds a genesis storage key/value store according to
-	// our desired mockup.
-	fn new_test_ext() -> runtime_io::TestExternalities<Blake2Hasher> {
-		system::GenesisConfig::default().build_storage::<Test>().unwrap().into()
-	}
+    // This function basically just builds a genesis storage key/value store according to
+    // our desired mockup.
+    fn new_test_ext() -> runtime_io::TestExternalities<Blake2Hasher> {
+        system::GenesisConfig::default().build_storage::<Test>().unwrap().into()
+    }
 
-	/// TEST ADDING/DELETING
-	#[test]
-	fn test_add() {
-		with_externalities(&mut new_test_ext(), || {
-			let elems = vec![U256::from(3), U256::from(5), U256::from(7)];
-			Stateless::add(&elems);
-			assert_eq!(Stateless::get_state(), U256::from(5));
-		});
-	}
+    /// TEST ADDING/DELETING
+    #[test]
+    fn test_add() {
+        with_externalities(&mut new_test_ext(), || {
+            let elems = vec![U256::from(3), U256::from(5), U256::from(7)];
+            Stateless::add(&elems);
+            assert_eq!(Stateless::get_state(), U256::from(5));
+        });
+    }
 
-	#[test]
-	fn test_del() {
-		with_externalities(&mut new_test_ext(), || {
-			let elems = vec![U256::from(3), U256::from(5), U256::from(7)];
-			Stateless::add(&elems);
+    #[test]
+    fn test_del() {
+        with_externalities(&mut new_test_ext(), || {
+            let elems = vec![U256::from(3), U256::from(5), U256::from(7)];
+            Stateless::add(&elems);
 
             // Make sure to test wil invalid spends
-			assert_ok!(Stateless::spend(Origin::signed(1), U256::from(3), U256::from(7)));
-			assert_ok!(Stateless::spend(Origin::signed(1), U256::from(5), U256::from(5)));
-			assert_ok!(Stateless::spend(Origin::signed(1), U256::from(7), U256::from(8)));
+            assert_ok!(Stateless::spend(Origin::signed(1), U256::from(3), U256::from(7)));
+            assert_ok!(Stateless::spend(Origin::signed(1), U256::from(5), U256::from(5)));
+            assert_ok!(Stateless::spend(Origin::signed(1), U256::from(7), U256::from(8)));
 
             Stateless::on_finalize(System::block_number());
 
             assert_eq!(Stateless::get_state(), U256::from(2));
 
-		});
-	}
+        });
+    }
 }
