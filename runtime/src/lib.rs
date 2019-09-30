@@ -254,14 +254,11 @@ type Event = Event;
 type Proposal = Call;
 }
 
-parameter_types! {
-pub const RsaModulus:U256 = U256::from(13);  // Super arbitrary at the moment
-}
+parameter_types! {}
 
 /// Used for the module template in `./stateless.rs`
 impl stateless::Trait for Runtime {
 type Event = Event;
-type RsaModulus = RsaModulus;
 }
 
 construct_runtime!(
@@ -277,7 +274,7 @@ pub enum Runtime where
     Indices: indices::{default, Config<T>},
     Balances: balances,
     Sudo: sudo,
-    Stateless: stateless::{Module, Call, Storage, Event<T>, RsaModulus},
+    Stateless: stateless::{Module, Call, Storage, Event},
 }
 );
 
@@ -293,12 +290,12 @@ pub type SignedBlock = generic::SignedBlock<Block>;
 pub type BlockId = generic::BlockId<Block>;
 /// The SignedExtension to the basic transaction logic.
 pub type SignedExtra = (
-system::CheckVersion<Runtime>,
-system::CheckGenesis<Runtime>,
-system::CheckEra<Runtime>,
-system::CheckNonce<Runtime>,
-system::CheckWeight<Runtime>,
-balances::TakeFees<Runtime>
+    system::CheckVersion<Runtime>,
+    system::CheckGenesis<Runtime>,
+    system::CheckEra<Runtime>,
+    system::CheckNonce<Runtime>,
+    system::CheckWeight<Runtime>,
+    balances::TakeFees<Runtime>
 );
 /// Unchecked extrinsic type as expected by this runtime.
 pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, Call, Signature, SignedExtra>;
@@ -332,8 +329,8 @@ impl block_builder_api::BlockBuilder<Block> for Runtime {
     // FIX: Doesn't actually go through aggregation function.
     fn apply_extrinsic(extrinsic: <Block as BlockT>::Extrinsic) -> ApplyResult {
         use support::IsSubType;
-        if let Some(&stateless::Call::spend(elem, witness)) = IsSubType::<stateless::Module<Runtime>, Runtime>::is_sub_type(&extrinsic.function) {
-            return <stateless::Module<Runtime>>::add_spent_coin(elem, witness);
+        if let Some(&stateless::Call::add_transaction(transaction)) = IsSubType::<stateless::Module<Runtime>, Runtime>::is_sub_type(&extrinsic.function) {
+            return <stateless::Module<Runtime>>::verify_transaction(transaction);
         }
         Executive::apply_extrinsic(extrinsic)
     }
