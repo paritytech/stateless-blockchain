@@ -1,10 +1,11 @@
-/// Integer subroutines for accumulator functions.
+/// Integer Subroutines for Accumulator Functions.
 
 use primitive_types::U256;
 use core::convert::TryFrom;
 use runtime_io::blake2_256;
+use rstd::prelude::Vec;
 
-/// Implement fast modular exponentiation. Algorithm inspired by https://github.com/pwoolcoc/mod_exp-rs/blob/master/src/lib.rs
+/// Implements fast modular exponentiation. Algorithm inspired by https://github.com/pwoolcoc/mod_exp-rs/blob/master/src/lib.rs
 /// NOTE: Overflow error occurs when size of result exceeds U256.
 pub fn mod_exp(mut base: U256, mut exp: U256, modulus: U256) -> U256 {
     let mut result: U256 = U256::from(1);
@@ -24,7 +25,7 @@ pub fn mod_exp(mut base: U256, mut exp: U256, modulus: U256) -> U256 {
     return result;
 }
 
-/// Define the multiplication operation for the group. Idea courtesy of:
+/// Defines the multiplication operation for the group. Idea courtesy of:
 /// https://www.geeksforgeeks.org/how-to-avoid-overflow-in-modular-multiplication/
 /// NOTE: Function does not work if a > U256::max_value()/2 (we get a stack overflow if we try to
 /// recursively call itself).
@@ -78,7 +79,7 @@ pub fn shamir_trick(mut xth_root: U256, mut yth_root: U256, x: U256, y: U256) ->
     }
 }
 
-/// Compute the modular multiplicative inverse.
+/// Computes the modular multiplicative inverse.
 /// NOTE: Does not check if gcd != 1(none exists if so).
 pub fn mod_inverse(elem: U256) -> U256 {
     let (_, x, _) = extended_gcd(elem, U256::from(super::MODULUS));
@@ -134,8 +135,7 @@ pub fn extended_gcd(a: U256, b: U256) -> (U256, i128, i128) {
 
 /// Continuously hashes the input until the result is prime. Assumes input values are transcoded in
 /// little endian(uses parity-scale-codec).
-/// NOTE: For testing purposes, we are currently limiting primes to u64. Currently unclear about the security
-/// of such an adjustment.
+/// Consideration: Currently unclear about the impact of Lambda on the security of the scheme.
 pub fn hash_to_prime(elem: &[u8]) -> U256 {
     let mut hash = blake2_256(elem);
 
@@ -183,8 +183,31 @@ pub fn miller_rabin(n: U256) -> bool {
     return true;
 }
 
-pub fn root_factor() {
+/// Given an element g and a set of elements x, computes the xith root of g^x for each element
+/// in the set. Runs in O(n log(n)).
+pub fn root_factor(g: U256, elems: &[U256]) -> Vec<U256> {
+    if elems.len() == 1 {
+        let mut ret = Vec::new();
+        ret.push(g);
+        return ret;
+    }
 
+    let n_prime = elems.len()/2;
+
+    let mut g_left = g;
+    for i in 0..n_prime {
+        g_left = mod_exp(g_left, elems[i], U256::from(super::MODULUS));
+    }
+
+    let mut g_right = g;
+    for i in n_prime..elems.len() {
+        g_right = mod_exp(g_right, elems[i], U256::from(super::MODULUS));
+    }
+
+    let mut left = root_factor(g_right, &elems[0..n_prime]);
+    let mut right = root_factor(g_left, &elems[n_prime..]);
+    left.append(&mut right);
+    return left;
 }
 
 #[cfg(test)]
@@ -249,4 +272,12 @@ mod tests {
         // Key values checked: 0, 1, 2
         //assert_eq!(hash_to_prime(&U256::from(0).encode(), U256::max_value()/U256::from(8)), U256::from(1121));
     }
+
+    #[test]
+    fn test_root_factor() {
+        assert_eq!(root_factor(U256::from(2), &vec![U256::from(3), U256::from(5), U256::from(7), U256::from(11)]),
+                   vec![U256::from(2), U256::from(8), U256::from(5), U256::from(5)]);
+    }
+
+
 }

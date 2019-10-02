@@ -1,20 +1,20 @@
-/// Succinct non-interactive proofs of exponentiation.
+/// Succinct Non-interactive Proofs of Exponentiation.
 
 use primitive_types::U256;
 use runtime_io::blake2_256;
 use codec::{Encode};
 use crate::subroutines;
 
-/// Generate proof of exponentiation for u^x = w (based on Wesolowski). Protocol is only useful
-/// if the verifier can compute the reside r = x mod l faster than computing u^x.
-/// To investigate: Security parameter should be larger than that for accumulator elements.
+/// Generates proof of exponentiation that u^x = w (based on Wesolowski). Protocol is only useful
+/// if the verifier can compute the residue r = x mod l faster than computing u^x.
+/// To investigate: Security parameter should be larger than that of accumulator elements.
 pub fn poe(u: U256, x: U256, w: U256) -> U256 {
     let l = subroutines::hash_to_prime(&(u, x, w).encode());
     let q = x / l;
     return subroutines::mod_exp(u, q, U256::from(super::MODULUS));
 }
 
-/// Verify proof of exponentiation.
+/// Verifies proof of exponentiation.
 pub fn verify_poe(u: U256, x: U256, w: U256, Q: U256) -> bool {
     let l = subroutines::hash_to_prime(&(u, x, w).encode());
     let r = x % l;
@@ -23,9 +23,9 @@ pub fn verify_poe(u: U256, x: U256, w: U256, Q: U256) -> bool {
     return lhs == w;
 }
 
-/// Generate proof of knowledge of exponentiation for u^x = w. We will assume that the generator
+/// Generates proof of knowledge of exponentiation that u^x = w. We will assume that the generator
 /// g = 2 is a group element of unknown order.
-/// To investigate: Security parameter should be larger than that for accumulator elements.
+/// To investigate: Security parameter should be larger than that of accumulator elements.
 pub fn poke(u: U256, x: U256, w: U256) -> (U256, U256, U256) {
     let z = subroutines::mod_exp(U256::from(2), x, U256::from(super::MODULUS));
     let l = subroutines::hash_to_prime(&(u, w, z).encode());
@@ -38,7 +38,7 @@ pub fn poke(u: U256, x: U256, w: U256) -> (U256, U256, U256) {
     return pi;
 }
 
-/// Verify proof of knowledge of exponentiation.
+/// Verifies proof of knowledge of exponentiation.
 pub fn verify_poke(u: U256, w: U256, z: U256, Q: U256, r: U256) -> bool {
     let l = subroutines::hash_to_prime(&(u, w, z).encode());
     let alpha = U256::from(blake2_256(&(u, w, z, l).encode()));

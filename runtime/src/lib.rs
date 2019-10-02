@@ -28,7 +28,6 @@ use primitive_types::U256;
 #[cfg(feature = "std")]
 use version::NativeVersion;
 
-
 // A few exports that help ease life for downstream crates.
 #[cfg(any(feature = "std", test))]
 pub use sr_primitives::BuildStorage;
@@ -326,8 +325,10 @@ impl client_api::Metadata<Block> for Runtime {
 }
 
 impl block_builder_api::BlockBuilder<Block> for Runtime {
-    // FIX: Doesn't actually go through aggregation function.
     fn apply_extrinsic(extrinsic: <Block as BlockT>::Extrinsic) -> ApplyResult {
+        /// Watch for and verify incoming transactions. The actual extrinsics will not be applied
+        /// to allow for aggregation during block finalization.
+        /// *THIS IS UNTESTED*
         use support::IsSubType;
         if let Some(&stateless::Call::add_transaction(transaction)) = IsSubType::<stateless::Module<Runtime>, Runtime>::is_sub_type(&extrinsic.function) {
             return <stateless::Module<Runtime>>::verify_transaction(transaction);

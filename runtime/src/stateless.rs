@@ -1,6 +1,15 @@
-/// This runtime implements a stateless blockchain on Substrate using RSA accumulators. The code is meant to be
-/// experimental and is far from production quality. The following code has not been checked for correctness nor has
-/// been optimized for efficiency.
+/// PROJECT: Stateless Blockchain Experiment.
+///
+/// DESCRIPTION: This repository implements a UTXO-based stateless blockchain on Substrate using an
+/// RSA accumulator. In this scheme, validators only need to track a single accumulator value and
+/// users only need to store their own UTXOs and membership proofs. Unless a data service provider is
+/// used, users must constantly watch for updates to the accumulator in order to update their proofs.
+/// This particular implementation includes batching and aggregation techniques from this paper:
+/// https://eprint.iacr.org/2018/1188.pdf.
+///
+/// NOTE: This repository is experimental and is not meant to be used in production. The design choices
+/// made in this runtime are impractical from both a security and usability standpoint. Additionally,
+/// the following code has not been checked for correctness nor has been optimized for efficiency.
 
 use support::{decl_module, decl_storage, decl_event, ensure, StorageValue, dispatch::Result, traits::Get, print};
 use system::{ensure_signed, ensure_root};
@@ -11,18 +20,20 @@ use codec::{Encode, Decode};
 use accumulator;
 
 #[cfg_attr(feature = "std", derive(Debug))]
-#[derive(Default, Clone, Encode, Decode, Hash, PartialEq, Eq, Copy)]
+#[derive(Default, Clone, Encode, Decode, PartialEq, Eq, Copy)]
 pub struct UTXO {
     pub pub_key: H256,
     pub id: u64,
 }
 
 #[cfg_attr(feature = "std", derive(Debug))]
-#[derive(Default, Clone, Encode, Decode, Hash, PartialEq, Eq, Copy)]
+#[derive(Default, Clone, Encode, Decode, PartialEq, Eq, Copy)]
 pub struct Transaction {
     pub input: UTXO,
     pub output: UTXO,
     pub witness: U256,
+    pub proof: U256,
+    // Need to add signature here
 }
 
 pub trait Trait: system::Trait {
@@ -51,8 +62,8 @@ decl_module! {
         fn deposit_event() = default;
 	    // Declare RSA modulus constant
 
-        /// Receive request to spend a coin.
-        /// Only one transaction per user per block is allowed.
+        /// Receive request to execute a transaction.
+        /// NOTE: Only works if one transaction per user per block is submitted.
         pub fn add_transaction(origin, transaction: Transaction) -> Result {
             ensure_signed(origin)?;
             Ok(())
@@ -64,12 +75,13 @@ decl_module! {
             let (state, agg, proof) = Self::delete(&SpentCoins::get());
             Self::deposit_event(Event::Deletion(state, agg, proof));
 
+            runtime_io::print(state.low_u64());
+
             // Add new coins to aggregator and distribute proof
             let (state, agg, proof) = Self::add(&NewCoins::get());
             Self::deposit_event(Event::Addition(state, agg, proof));
 
-            // Update state
-            State::put(state);
+            runtime_io::print(state.low_u64());
 
             // Clear storage
             SpentCoins::mutate(|n| n.clear());
@@ -80,7 +92,7 @@ decl_module! {
 
 impl<T: Trait> Module<T> {
     /// Verify the contents of a transaction and temporarily add it to a queue of verified transactions.
-    /// Function will evolve as the structure of a transaction is modified.
+    /// This function will evolve as more implementation details related to transactions are added.
     pub fn verify_transaction(transaction: Transaction) -> ApplyResult  {
         // Arbitrarily cap the number of pending transactions to 100
         // Also verify that the user is not spending to themselves
@@ -91,32 +103,33 @@ impl<T: Trait> Module<T> {
         // Verify witness
         let spent_elem = accumulator::subroutines::hash_to_prime(&transaction.input.encode());
         if !(accumulator::witnesses::verify_mem_wit(Self::get_state(),
-                                                    spent_elem, transaction.witness)) {
+                                                    spent_elem, transaction.witness, transaction.proof)) {
             return Ok(ApplyOutcome::Fail);
         }
 
         let new_elem = accumulator::subroutines::hash_to_prime(&transaction.output.encode());
 
-        SpentCoins::mutate(|n| n.push((spent_elem, transaction.witness)));
-        NewCoins::mutate(|n| n.push(new_elem));
+        SpentCoins::mutate(|v| v.push((spent_elem, transaction.witness)));
+        NewCoins::mutate(|v| v.push(new_elem));
         Ok(ApplyOutcome::Success)
     }
 
-    // Aggregate a set of accumulator elements and witnesses in order to batch delete them from the accumulator.
-    // Returns the state after deletion and proof of exponentiation.
+    /// Aggregates a set of accumulator elements + witnesses and batch deletes them from the accumulator.
+    /// Returns the state after deletion, the product of the deleted elements, and a proof of exponentiation.
     pub fn delete(elems: &Vec<(U256, U256)>) -> (U256, U256, U256) {
         let (mut x_agg, mut new_state) = elems[0];
         for i in 1..elems.len() {
             let (x, witness) = elems[i];
             new_state = accumulator::subroutines::shamir_trick(new_state, witness, x_agg, x).unwrap();
-            x_agg *= x;  // Should this be mod?
+            x_agg *= x;
         }
         let proof = accumulator::proofs::poe(new_state, x_agg, State::get());
+        State::put(new_state);
         return (new_state, x_agg, proof);
     }
 
-    // Aggregates a set of accumulator elements and witnesses in order to batch add them to the accumulator.
-    // Returns the state after addition and a proof of exponentiation.
+    /// Aggregates a set of accumulator elements + witnesses and batch adds them to the accumulator.
+    /// Returns the state after addition, the product of the added elements, and a proof of exponentiation.
     pub fn add(elems: &Vec<U256>) -> (U256, U256, U256) {
         let mut x_agg = U256::from(1);
         for i in 0..elems.len() {
@@ -192,7 +205,6 @@ mod tests {
         system::GenesisConfig::default().build_storage::<Test>().unwrap().into()
     }
 
-    /// TEST ADDING/DELETING
     #[test]
     fn test_add() {
         with_externalities(&mut new_test_ext(), || {
@@ -202,22 +214,113 @@ mod tests {
         });
     }
 
-//    #[test]
-//    fn test_del() {
-//        with_externalities(&mut new_test_ext(), || {
-//            let elems = vec![U256::from(3), U256::from(5), U256::from(7)];
-//            Stateless::add(&elems);
-//
-//            // Make sure to test wil invalid spends
-//            assert_ok!(Stateless::spend(Origin::signed(1), U256::from(3), U256::from(7)));
-//            assert_ok!(Stateless::spend(Origin::signed(1), U256::from(5), U256::from(5)));
-//            assert_ok!(Stateless::spend(Origin::signed(1), U256::from(7), U256::from(8)));
-//
-//            Stateless::on_finalize(System::block_number());
-//
-//            assert_eq!(Stateless::get_state(), U256::from(2));
-//
-//        });
-//    }
+    #[test]
+    fn test_del() {
+        with_externalities(&mut new_test_ext(), || {
+            let elems = vec![U256::from(3), U256::from(5), U256::from(7)];
+            // Collect witnesses for the added elements
+            let witnesses = accumulator::witnesses::create_all_mem_wit(Stateless::get_state(), &elems);
+
+            // Add elements
+            Stateless::add(&elems);
+            assert_eq!(Stateless::get_state(), U256::from(5));
+
+            // Delete elements
+            let deletions = vec![(elems[0], witnesses[0]), (elems[1], witnesses[1]), (elems[2], witnesses[2])];
+            Stateless::delete(&deletions);
+            assert_eq!(Stateless::get_state(), U256::from(2));
+        });
+    }
+
+    #[test]
+    fn test_block() {
+        with_externalities(&mut new_test_ext(), || {
+            // 1. Construct UTXOs.
+            let utxo_0 = UTXO {
+                pub_key: H256::from_low_u64_be(0),
+                id: 0,
+            };
+
+            let utxo_1 = UTXO {
+                pub_key: H256::from_low_u64_be(1),
+                id: 1,
+            };
+
+            let utxo_2 = UTXO {
+                pub_key: H256::from_low_u64_be(2),
+                id: 2,
+            };
+
+            // 2. Hash each UTXO to a prime.
+            let elem_0 = accumulator::subroutines::hash_to_prime(&utxo_0.encode());
+            let elem_1 = accumulator::subroutines::hash_to_prime(&utxo_1.encode());
+            let elem_2 = accumulator::subroutines::hash_to_prime(&utxo_2.encode());
+            let elems = vec![elem_0, elem_1, elem_2];
+
+            // 3. Produce witnesses for the added elements.
+            let witnesses = accumulator::witnesses::create_all_mem_wit(Stateless::get_state(), &elems);
+
+            // 4. Add elements to the accumulator.
+            Stateless::add(&elems);
+
+            // 5. Construct new UTXOs and derive integer representations.
+            let utxo_3 = UTXO {
+                pub_key: H256::from_low_u64_be(1),
+                id: 0,
+            };
+
+            let utxo_4 = UTXO {
+                pub_key: H256::from_low_u64_be(2),
+                id: 1,
+            };
+
+            let utxo_5 = UTXO {
+                pub_key: H256::from_low_u64_be(0),
+                id: 2,
+            };
+
+            let elem_3 = accumulator::subroutines::hash_to_prime(&utxo_3.encode());
+            let elem_4 = accumulator::subroutines::hash_to_prime(&utxo_4.encode());
+            let elem_5 = accumulator::subroutines::hash_to_prime(&utxo_5.encode());
+
+            // 6. Construct transactions.
+            let tx_0 = Transaction {
+                input: utxo_0,
+                output: utxo_3,
+                witness: witnesses[0],
+                proof: accumulator::proofs::poe(witnesses[0], elem_0, Stateless::get_state()),
+            };
+
+            let tx_1 = Transaction {
+                input: utxo_1,
+                output: utxo_4,
+                witness: witnesses[1],
+                proof: accumulator::proofs::poe(witnesses[1], elem_1, Stateless::get_state()),
+            };
+
+            let tx_2 = Transaction {
+                input: utxo_2,
+                output: utxo_5,
+                witness: witnesses[2],
+                proof: accumulator::proofs::poe(witnesses[2], elem_2, Stateless::get_state()),
+            };
+
+            // 7. Verify transactions. Note that this logic will eventually be executed automatically
+            // by the block builder API eventually.
+            assert_eq!(Stateless::verify_transaction(tx_0).unwrap(), ApplyOutcome::Success);
+            assert_eq!(Stateless::verify_transaction(tx_1).unwrap(), ApplyOutcome::Success);
+            assert_eq!(Stateless::verify_transaction(tx_2).unwrap(), ApplyOutcome::Success);
+
+            // 8. Finalize the block.
+            Stateless::on_finalize(System::block_number());
+
+            assert_eq!(Stateless::get_state(),
+                       accumulator::subroutines::mod_exp(U256::from(2), elem_3 * elem_4 * elem_5, U256::from(accumulator::MODULUS)));
+
+        });
+    }
+
+
+
 
 }
