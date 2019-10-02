@@ -58,7 +58,7 @@ git = 'https://github.com/paritytech/substrate.git'
 package = 'substrate-network'
 rev = '3ba0f2a2dbd37c31851a0ff1c1c0c47aa940de90'
 
-[dependencies.node-template-runtime]
+[dependencies.stateless-blockchain-runtime]
 path = 'runtime'
 
 [dependencies.primitives]
@@ -92,12 +92,12 @@ package = 'substrate-transaction-pool'
 rev = '3ba0f2a2dbd37c31851a0ff1c1c0c47aa940de90'
 
 [package]
-authors = ['Anonymous']
+authors = ['andrewtam']
 build = 'build.rs'
 edition = '2018'
-name = 'node-template'
+name = 'stateless-blockchain'
 version = '2.0.0'
 
 [[bin]]
-name = 'node-template'
+name = 'stateless-blockchain'
 path = 'src/main.rs'

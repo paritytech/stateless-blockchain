@@ -1,11 +1,8 @@
 [package]
 authors = ['andrewtam']
 edition = '2018'
-name = 'stateless-blockchain-runtime'
-version = '2.0.0'
-
-[dependencies]
-accumulator = { path = "../accumulator", default-features = false}
+name = 'accumulator'
+version = '1.0.0'
 
 [dependencies.babe]
 default-features = false
