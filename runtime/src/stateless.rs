@@ -10,11 +10,16 @@
 /// NOTE: This repository is experimental and is not meant to be used in production. The design choices
 /// made in this runtime are impractical from both a security and usability standpoint. Additionally,
 /// the following code has not been checked for correctness nor has been optimized for efficiency.
+///
+/// To-Do:
+/// - Defining structs, generics/traits(pubkey, U256, proofs)
+/// - Test block_builder API, 101th element
 
 use support::{decl_module, decl_storage, decl_event, ensure, StorageValue, dispatch::Result, traits::Get, print};
 use system::{ensure_signed, ensure_root};
 use primitive_types::{U256, H256};
 use rstd::prelude::Vec;
+use rstd::vec;
 use sr_primitives::{ApplyResult, ApplyOutcome};
 use codec::{Encode, Decode};
 use accumulator;
@@ -60,7 +65,6 @@ decl_module! {
     pub struct Module<T: Trait> for enum Call where origin: T::Origin {
         // Initialize generic event
         fn deposit_event() = default;
-	    // Declare RSA modulus constant
 
         /// Receive request to execute a transaction.
         /// NOTE: Only works if one transaction per user per block is submitted.
@@ -69,23 +73,33 @@ decl_module! {
             Ok(())
         }
 
+        /// SOLELY FOR TESTING PURPOSE TO CREATE NEW COINS
+        pub fn mint(origin, elem: U256) -> Result {
+            ensure_signed(origin)?;
+            let state = accumulator::subroutines::mod_exp(State::get(), elem, U256::from(accumulator::MODULUS));
+            State::put(state);
+            Ok(())
+        }
+
         /// Batch delete spent coins and add new coins on block finalization
         fn on_finalize() {
-            // Delete spent coins from aggregator and distribute proof
-            let (state, agg, proof) = Self::delete(&SpentCoins::get());
-            Self::deposit_event(Event::Deletion(state, agg, proof));
+            // Clause here to protect against empty blocks
+            if Self::get_spent_coins().len() > 0 {
+                // Delete spent coins from aggregator and distribute proof
+                let (state, agg, proof) = Self::delete(&SpentCoins::get());
+                Self::deposit_event(Event::Deletion(state, agg, proof));
 
-            runtime_io::print(state.low_u64());
+                // Add new coins to aggregator and distribute proof
+                let (state, agg, proof) = Self::add(state, &NewCoins::get());
+                Self::deposit_event(Event::Addition(state, agg, proof));
 
-            // Add new coins to aggregator and distribute proof
-            let (state, agg, proof) = Self::add(&NewCoins::get());
-            Self::deposit_event(Event::Addition(state, agg, proof));
-
-            runtime_io::print(state.low_u64());
+                // Update state
+                State::put(state);
+            }
 
             // Clear storage
-            SpentCoins::mutate(|n| n.clear());
-            NewCoins::mutate(|n| n.clear());
+            SpentCoins::kill();
+            NewCoins::kill();
         }
     }
 }
@@ -107,10 +121,12 @@ impl<T: Trait> Module<T> {
             return Ok(ApplyOutcome::Fail);
         }
 
-        let new_elem = accumulator::subroutines::hash_to_prime(&transaction.output.encode());
+        let mut new_elem = accumulator::subroutines::hash_to_prime(&transaction.output.encode());
 
-        SpentCoins::mutate(|v| v.push((spent_elem, transaction.witness)));
-        NewCoins::mutate(|v| v.push(new_elem));
+        // Update storage items.
+        SpentCoins::append(&vec![(spent_elem, transaction.witness)]);
+        NewCoins::append(&vec![new_elem]);
+
         Ok(ApplyOutcome::Success)
     }
 
@@ -124,24 +140,21 @@ impl<T: Trait> Module<T> {
             x_agg *= x;
         }
         let proof = accumulator::proofs::poe(new_state, x_agg, State::get());
-        State::put(new_state);
         return (new_state, x_agg, proof);
     }
 
     /// Aggregates a set of accumulator elements + witnesses and batch adds them to the accumulator.
     /// Returns the state after addition, the product of the added elements, and a proof of exponentiation.
-    pub fn add(elems: &Vec<U256>) -> (U256, U256, U256) {
+    pub fn add(state: U256, elems: &Vec<U256>) -> (U256, U256, U256) {
         let mut x_agg = U256::from(1);
         for i in 0..elems.len() {
             x_agg *= elems[i];
         }
 
-        let new_state = accumulator::subroutines::mod_exp(State::get(), x_agg, U256::from(accumulator::MODULUS));
-        let proof = accumulator::proofs::poe(State::get(), x_agg, new_state);
-        State::put(new_state);
+        let new_state = accumulator::subroutines::mod_exp(state, x_agg, U256::from(accumulator::MODULUS));
+        let proof = accumulator::proofs::poe(state, x_agg, new_state);
         return (new_state, x_agg, proof);
     }
-
 }
 
 /// tests for this module
@@ -209,8 +222,8 @@ mod tests {
     fn test_add() {
         with_externalities(&mut new_test_ext(), || {
             let elems = vec![U256::from(3), U256::from(5), U256::from(7)];
-            Stateless::add(&elems);
-            assert_eq!(Stateless::get_state(), U256::from(5));
+            let (state, _, _) = Stateless::add(Stateless::get_state(), &elems);
+            assert_eq!(state, U256::from(5));
         });
     }
 
@@ -222,13 +235,13 @@ mod tests {
             let witnesses = accumulator::witnesses::create_all_mem_wit(Stateless::get_state(), &elems);
 
             // Add elements
-            Stateless::add(&elems);
-            assert_eq!(Stateless::get_state(), U256::from(5));
+            let (state, _, _) = Stateless::add(Stateless::get_state(), &elems);
+            assert_eq!(state, U256::from(5));
 
             // Delete elements
             let deletions = vec![(elems[0], witnesses[0]), (elems[1], witnesses[1]), (elems[2], witnesses[2])];
-            Stateless::delete(&deletions);
-            assert_eq!(Stateless::get_state(), U256::from(2));
+            let (state, _, _) = Stateless::delete(&deletions);
+            assert_eq!(state, U256::from(2));
         });
     }
 
@@ -261,7 +274,8 @@ mod tests {
             let witnesses = accumulator::witnesses::create_all_mem_wit(Stateless::get_state(), &elems);
 
             // 4. Add elements to the accumulator.
-            Stateless::add(&elems);
+            let (state, _, _) = Stateless::add(Stateless::get_state(), &elems);
+            State::put(state);
 
             // 5. Construct new UTXOs and derive integer representations.
             let utxo_3 = UTXO {

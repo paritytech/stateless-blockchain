@@ -36,8 +36,21 @@ pub fn agg_mem_wit(state: U256, witness_x: U256, witness_y: U256, x: U256, y: U2
 
 /// Creates individual membership witnesses. Acts as a wrapper for the RootFactor subroutine.
 /// NOTE: "old_state" represents the state *before* the elements are added.
+/// This function will most likely be used by a service provider.
 pub fn create_all_mem_wit(old_state: U256, new_elems: &[U256]) -> Vec<U256> {
     return subroutines::root_factor(old_state, new_elems);
+}
+
+/// Given the product of a set of elements that have been added, and a single element from that
+/// set, returns the witness for that element.
+/// NOTE: "old_state" represents the state *before* the elements are added.
+/// This function will likely be used by an online user.
+pub fn create_single_mem_wit(old_state: U256, elem: U256, agg: U256) -> Option<U256> {
+    if agg % elem != U256::from(0) {
+        return None;
+    }
+    let quotient = agg / elem;
+    return Some(subroutines::mod_exp(old_state, quotient, U256::from(super::MODULUS)));
 }
 
 #[cfg(test)]
@@ -75,6 +88,15 @@ mod tests {
     fn test_create_all_mem_wit() {
         assert_eq!(create_all_mem_wit(U256::from(2), &vec![U256::from(3), U256::from(5), U256::from(7), U256::from(11)]),
                    vec![U256::from(2), U256::from(8), U256::from(5), U256::from(5)]);
+    }
+
+    #[test]
+    fn test_create_single_mem_wit() {
+        assert_eq!(create_single_mem_wit(U256::from(2), U256::from(3), U256::from(1155)).unwrap(), U256::from(2));
+        assert_eq!(create_single_mem_wit(U256::from(2), U256::from(5), U256::from(1155)).unwrap(), U256::from(8));
+        assert_eq!(create_single_mem_wit(U256::from(2), U256::from(7), U256::from(1155)).unwrap(), U256::from(5));
+        assert_eq!(create_single_mem_wit(U256::from(2), U256::from(11), U256::from(1155)).unwrap(), U256::from(5));
+        assert_eq!(create_single_mem_wit(U256::from(2), U256::from(4), U256::from(1155)).is_none(), true);
     }
 
 

@@ -4,6 +4,9 @@ edition = '2018'
 name = 'accumulator'
 version = '1.0.0'
 
+[dependencies]
+uint = { version = "0.8", default-features=false }
+
 [dependencies.babe]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
