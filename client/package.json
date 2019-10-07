@@ -1,0 +1,77 @@
+{
+  "name": "substrate-front-end-template",
+  "version": "0.1.1",
+  "private": true,
+  "author": "Parity Technologies <admin@parity.io>",
+  "license": "Unlicense",
+  "dependencies": {
+    "@polkadot/api": "^0.94.0-beta.11",
+    "@polkadot/extension-dapp": "^0.9.1",
+    "@polkadot/keyring": "^1.1.1",
+    "@polkadot/react-identicon": "^0.42.1",
+    "@polkadot/ui-keyring": "^0.42.1",
+    "@polkadot/util": "^1.5.1",
+    "@polkadot/util-crypto": "^1.2.1",
+    "@polkadot/util-rlp": "^1.5.1",
+    "big-integer": "^1.6.47",
+    "prop-types": "^15.7.2",
+    "react": "^16.9.0",
+    "react-dom": "^16.9.0",
+    "react-scripts": "3.1.1",
+    "semantic-ui-css": "^2.4.1",
+    "semantic-ui-react": "^0.88.0"
+  },
+  "scripts": {
+    "start": "PORT=8000 react-scripts start",
+    "build": "react-scripts build",
+    "test": "CI=true react-scripts test --env=jsdom",
+    "eject": "react-scripts eject",
+    "lint": "eslint src/**",
+    "lint:ci": "eslint src/** --max-warnings=0",
+    "lint:fix": "eslint --fix src/**",
+    "predeploy": "yarn build",
+    "deploy": "gh-pages -d build -m '[ci skip] Updates'"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "standard-warn"
+    ],
+    "rules": {
+      "semi": [
+        1,
+        "always"
+      ],
+      "no-extra-semi": 1
+    }
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "homepage": "https://substrate-developer-hub.github.io/substrate-front-end-template",
+  "bugs": {
+    "url": "https://github.com/substrate-developer-hub/substrate-front-end-template/issues"
+  },
+  "keywords": [
+    "substrate",
+    "substrate-ui",
+    "polkadot-js"
+  ],
+  "devDependencies": {
+    "eslint": "6.x",
+    "eslint-config-standard-warn": "^0.0.3",
+    "eslint-plugin-node": "^10.0.0",
+    "eslint-plugin-promise": "^4.2.1",
+    "eslint-plugin-standard": "^4.0.1",
+    "gh-pages": "^2.1.1"
+  }
+}
