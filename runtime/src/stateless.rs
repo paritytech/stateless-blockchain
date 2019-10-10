@@ -73,10 +73,10 @@ decl_module! {
             Ok(())
         }
 
-        /// SOLELY FOR TESTING PURPOSE TO CREATE NEW COINS
+        /// Arbitrary replacement for Proof-of-Work to create new coins.
         pub fn mint(origin, elem: U256) -> Result {
             ensure_signed(origin)?;
-            let state = accumulator::subroutines::mod_exp(State::get(), elem, U256::from(accumulator::MODULUS));
+            let state = accumulator::subroutines::mod_exp(Self::get_state(), elem, U256::from(accumulator::MODULUS));
             State::put(state);
             Ok(())
         }
@@ -86,11 +86,11 @@ decl_module! {
             // Clause here to protect against empty blocks
             if Self::get_spent_coins().len() > 0 {
                 // Delete spent coins from aggregator and distribute proof
-                let (state, agg, proof) = Self::delete(&SpentCoins::get());
+                let (state, agg, proof) = Self::delete(&Self::get_spent_coins());
                 Self::deposit_event(Event::Deletion(state, agg, proof));
 
                 // Add new coins to aggregator and distribute proof
-                let (state, agg, proof) = Self::add(state, &NewCoins::get());
+                let (state, agg, proof) = Self::add(state, &Self::get_new_coins());
                 Self::deposit_event(Event::Addition(state, agg, proof));
 
                 // Update state
@@ -139,7 +139,7 @@ impl<T: Trait> Module<T> {
             new_state = accumulator::subroutines::shamir_trick(new_state, witness, x_agg, x).unwrap();
             x_agg *= x;
         }
-        let proof = accumulator::proofs::poe(new_state, x_agg, State::get());
+        let proof = accumulator::proofs::poe(new_state, x_agg, Self::get_state());
         return (new_state, x_agg, proof);
     }
 
@@ -334,7 +334,12 @@ mod tests {
         });
     }
 
-
-
+    #[test]
+    fn test_mint() {
+        with_externalities(&mut new_test_ext(), || {
+            Stateless::mint(Origin::signed(1), U256::from(3));
+            assert_eq!(Stateless::get_state(), U256::from(8));
+        });
+    }
 
 }

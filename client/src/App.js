@@ -1,5 +1,5 @@
 import React, { useState, createRef } from 'react';
-import { Container, Dimmer, Loader, Grid, Sticky } from 'semantic-ui-react';
+import { Container, Dimmer, Loader, Grid, Sticky, Divider } from 'semantic-ui-react';
 
 import 'semantic-ui-css/semantic.min.css';
 import { SubstrateContextProvider, useSubstrate } from './substrate-lib';
@@ -7,11 +7,22 @@ import { DeveloperConsole } from './substrate-lib/components';
 
 import AccountSelector from './AccountSelector';
 import Accounts from './Accounts';
-import BlockNumber from './BlockNumber';
 import Events from './Events';
-import Extrinsics from './Extrinsics';
-import NodeInfo from './NodeInfo';
+import Transaction from './Transaction';
 import State from './State';
+import Mint from './Mint';
+import Witness from './Witness';
+import Test from './Test';
+
+const Loaded = ({ wasm }) => <button onClick={wasm.greet}>Click me</button>;
+
+const Unloaded = ({ loading, loadWasm }) => {
+  return loading ? (
+    <div>Loading...</div>
+  ) : (
+    <button onClick={loadWasm}>Load library</button>
+  );
+};
 
 function Main () {
   const [accountAddress, setAccountAddress] = useState(null);
@@ -40,22 +51,26 @@ function Main () {
 
   return (
     <div ref={contextRef}>
+
       <Sticky context={contextRef}>
         <AccountSelector setAccountAddress={setAccountAddress} />
       </Sticky>
       <Container>
         <Grid stackable columns='equal'>
           <Grid.Row>
-            <NodeInfo />
-            <BlockNumber />
-          </Grid.Row>
-          <Grid.Row>
             <Accounts />
+            <Mint accountPair={accountPair}/>
           </Grid.Row>
+          <Divider />
           <Grid.Row>
-            <Extrinsics accountPair={accountPair} />
+            <Transaction accountPair={accountPair} />
             <Events />
             <State accountPair={accountPair} />
+          </Grid.Row>
+          <Divider />
+          <Grid.Row>
+            <Witness accountPair={accountPair} />
+            <Test />
           </Grid.Row>
         </Grid>
         <DeveloperConsole />

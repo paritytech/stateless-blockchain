@@ -1,5 +1,12 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use wasm_bindgen::prelude::*;
+
+#[wasm_bindgen]
+pub fn foo(x: i32, y: i32) -> i32 {
+    x + y
+}
+
 pub mod subroutines;
 pub mod proofs;
 pub mod witnesses;

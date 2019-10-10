@@ -95,12 +95,12 @@ impl_opaque_keys! {
 
 /// This runtime version.
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-spec_name: create_runtime_str!("stateless-blockchain"),
-impl_name: create_runtime_str!("stateless-blockchain"),
-authoring_version: 3,
-spec_version: 4,
-impl_version: 4,
-apis: RUNTIME_API_VERSIONS,
+    spec_name: create_runtime_str!("stateless-blockchain"),
+    impl_name: create_runtime_str!("stateless-blockchain"),
+    authoring_version: 3,
+    spec_version: 4,
+    impl_version: 4,
+    apis: RUNTIME_API_VERSIONS,
 };
 
 /// Constants for Babe.
@@ -141,11 +141,11 @@ NativeVersion {
 }
 
 parameter_types! {
-pub const BlockHashCount: BlockNumber = 250;
-pub const MaximumBlockWeight: Weight = 1_000_000;
-pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
-pub const MaximumBlockLength: u32 = 5 * 1024 * 1024;
-pub const Version: RuntimeVersion = VERSION;
+    pub const BlockHashCount: BlockNumber = 250;
+    pub const MaximumBlockWeight: Weight = 1_000_000;
+    pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
+    pub const MaximumBlockLength: u32 = 5 * 1024 * 1024;
+    pub const Version: RuntimeVersion = VERSION;
 }
 
 impl system::Trait for Runtime {
@@ -183,81 +183,81 @@ type Version = Version;
 }
 
 parameter_types! {
-pub const EpochDuration: u64 = EPOCH_DURATION_IN_BLOCKS as u64;
-pub const ExpectedBlockTime: u64 = MILLISECS_PER_BLOCK;
+    pub const EpochDuration: u64 = EPOCH_DURATION_IN_BLOCKS as u64;
+    pub const ExpectedBlockTime: u64 = MILLISECS_PER_BLOCK;
 }
 
 impl babe::Trait for Runtime {
-type EpochDuration = EpochDuration;
-type ExpectedBlockTime = ExpectedBlockTime;
+    type EpochDuration = EpochDuration;
+    type ExpectedBlockTime = ExpectedBlockTime;
 }
 
 impl grandpa::Trait for Runtime {
-type Event = Event;
+    type Event = Event;
 }
 
 impl indices::Trait for Runtime {
-/// The type for recording indexing into the account enumeration. If this ever overflows, there
-/// will be problems!
-type AccountIndex = u32;
-/// Use the standard means of resolving an index hint from an id.
-type ResolveHint = indices::SimpleResolveHint<Self::AccountId, Self::AccountIndex>;
-/// Determine whether an account is dead.
-type IsDeadAccount = Balances;
-/// The ubiquitous event type.
-type Event = Event;
+    /// The type for recording indexing into the account enumeration. If this ever overflows, there
+    /// will be problems!
+    type AccountIndex = u32;
+    /// Use the standard means of resolving an index hint from an id.
+    type ResolveHint = indices::SimpleResolveHint<Self::AccountId, Self::AccountIndex>;
+    /// Determine whether an account is dead.
+    type IsDeadAccount = Balances;
+    /// The ubiquitous event type.
+    type Event = Event;
 }
 
 parameter_types! {
-pub const MinimumPeriod: u64 = 5000;
+    pub const MinimumPeriod: u64 = 5000;
 }
 
 impl timestamp::Trait for Runtime {
-/// A timestamp: milliseconds since the unix epoch.
-type Moment = u64;
-type OnTimestampSet = Babe;
-type MinimumPeriod = MinimumPeriod;
+    /// A timestamp: milliseconds since the unix epoch.
+    type Moment = u64;
+    type OnTimestampSet = Babe;
+    type MinimumPeriod = MinimumPeriod;
 }
 
 parameter_types! {
-pub const ExistentialDeposit: u128 = 500;
-pub const TransferFee: u128 = 0;
-pub const CreationFee: u128 = 0;
-pub const TransactionBaseFee: u128 = 0;
-pub const TransactionByteFee: u128 = 1;
+    pub const ExistentialDeposit: u128 = 500;
+    pub const TransferFee: u128 = 0;
+    pub const CreationFee: u128 = 0;
+    pub const TransactionBaseFee: u128 = 0;
+    pub const TransactionByteFee: u128 = 1;
 }
 
 impl balances::Trait for Runtime {
-/// The type for recording an account's balance.
-type Balance = Balance;
-/// What to do if an account's free balance gets zeroed.
-type OnFreeBalanceZero = ();
-/// What to do if a new account is created.
-type OnNewAccount = Indices;
-/// The ubiquitous event type.
-type Event = Event;
+    /// The type for recording an account's balance.
+    type Balance = Balance;
+    /// What to do if an account's free balance gets zeroed.
+    type OnFreeBalanceZero = ();
+    /// What to do if a new account is created.
+    type OnNewAccount = Indices;
+    /// The ubiquitous event type.
+    type Event = Event;
 
-type TransactionPayment = ();
-type DustRemoval = ();
-type TransferPayment = ();
-type ExistentialDeposit = ExistentialDeposit;
-type TransferFee = TransferFee;
-type CreationFee = CreationFee;
-type TransactionBaseFee = TransactionBaseFee;
-type TransactionByteFee = TransactionByteFee;
-type WeightToFee = ConvertInto;
+    type TransactionPayment = ();
+    type DustRemoval = ();
+    type TransferPayment = ();
+    type ExistentialDeposit = ExistentialDeposit;
+    type TransferFee = TransferFee;
+    type CreationFee = CreationFee;
+    type TransactionBaseFee = TransactionBaseFee;
+    type TransactionByteFee = TransactionByteFee;
+    type WeightToFee = ConvertInto;
 }
 
 impl sudo::Trait for Runtime {
-type Event = Event;
-type Proposal = Call;
+    type Event = Event;
+    type Proposal = Call;
 }
 
 parameter_types! {}
 
 /// Used for the module template in `./stateless.rs`
 impl stateless::Trait for Runtime {
-type Event = Event;
+    type Event = Event;
 }
 
 construct_runtime!(
