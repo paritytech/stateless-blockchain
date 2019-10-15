@@ -23,7 +23,7 @@ const App = () => {
   const loadWasm = async () => {
     try {
       setLoading(true);
-      const wasm = await import('accumulator');
+      const wasm = await import('accumulator-client');
       setWasm(wasm);
     } finally {
       setLoading(false);

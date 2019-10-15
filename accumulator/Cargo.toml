@@ -4,13 +4,8 @@ edition = '2018'
 name = 'accumulator'
 version = '1.0.0'
 
-[lib]
-crate-type = ["cdylib", "rlib"]
-
 [dependencies]
 uint = { version="0.8", default-features=false }
-wasm-bindgen = { version="0.2.51" }
-clear_on_drop = { version="0.2.3", features=["nightly"] }
 
 [dependencies.codec]
 default-features = false

@@ -4,13 +4,11 @@
 name = "accumulator"
 version = "1.0.0"
 dependencies = [
- "clear_on_drop 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-scale-codec 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.101 (registry+https://github.com/rust-lang/crates.io-index)",
  "sr-io 2.0.0 (git+https://github.com/paritytech/substrate.git?rev=3ba0f2a2dbd37c31851a0ff1c1c0c47aa940de90)",
  "sr-std 2.0.0 (git+https://github.com/paritytech/substrate.git?rev=3ba0f2a2dbd37c31851a0ff1c1c0c47aa940de90)",
  "uint 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "wasm-bindgen 0.2.51 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

@@ -2,7 +2,7 @@
   "APP_NAME": "substrate-front-end-tutorial",
   "DEVELOPMENT_KEYRING": true,
   "CUSTOM_TYPES": {
-    "U256": "u256",
+    "U2048": "Vec<u8>",
     "UTXO": {
       "pubkey": "Hash",
       "id": "u64"
@@ -10,8 +10,8 @@
     "Transaction": {
       "input": "UTXO",
       "output": "UTXO",
-      "witness": "u256",
-      "proof": "u256"
+      "witness": "U2048",
+      "proof": "U2048"
     }
   }
 }
