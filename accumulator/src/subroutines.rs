@@ -1,25 +1,25 @@
 /// Integer Subroutines for Accumulator Functions.
 
-use primitive_types::U256;
 use core::convert::TryFrom;
 use runtime_io::blake2_256;
 use rstd::prelude::Vec;
+use super::U2048;
 
 /// Implements fast modular exponentiation. Algorithm inspired by https://github.com/pwoolcoc/mod_exp-rs/blob/master/src/lib.rs
-/// NOTE: Overflow error occurs when size of result exceeds U256.
-pub fn mod_exp(mut base: U256, mut exp: U256, modulus: U256) -> U256 {
-    let mut result: U256 = U256::from(1);
+/// NOTE: Overflow error occurs when size of result exceeds U2048.
+pub fn mod_exp(mut base: U2048, mut exp: U2048, modulus: U2048) -> U2048 {
+    let mut result: U2048 = U2048::from(1);
     base = base % modulus;
-    while exp > U256::from(0) {
-        if exp % U256::from(2) == U256::from(1) {
+    while exp > U2048::from(0) {
+        if exp % U2048::from(2) == U2048::from(1) {
             result = mul_mod(result, base, modulus);
         }
 
-        if exp == U256::from(1) {
+        if exp == U2048::from(1) {
             return result;
         }
 
-        exp = exp >> U256::from(1);
+        exp = exp >> U2048::from(1);
         base = mul_mod(base, base, modulus);
     }
     return result;
@@ -27,18 +27,16 @@ pub fn mod_exp(mut base: U256, mut exp: U256, modulus: U256) -> U256 {
 
 /// Defines the multiplication operation for the group. Idea courtesy of:
 /// https://www.geeksforgeeks.org/how-to-avoid-overflow-in-modular-multiplication/
-/// NOTE: Function does not work if a > U256::max_value()/2 (we get a stack overflow if we try to
-/// recursively call itself).
-pub fn mul_mod(mut a: U256, mut b: U256, modulus: U256) -> U256 {
-    let mut result = U256::from(0);
+pub fn mul_mod(mut a: U2048, mut b: U2048, modulus: U2048) -> U2048 {
+    let mut result = U2048::from(0);
     a = a % modulus;
-    while b > U256::from(0) {
-        if b % U256::from(2) == U256::from(1) {
+    while b > U2048::from(0) {
+        if b % U2048::from(2) == U2048::from(1) {
             result = (result + a) % modulus;
         }
 
-        a = (a * U256::from(2)) % modulus;
-        b /= U256::from(2);
+        a = (a * U2048::from(2)) % modulus;
+        b /= U2048::from(2);
     }
     return result % modulus;
 }
@@ -46,10 +44,10 @@ pub fn mul_mod(mut a: U256, mut b: U256, modulus: U256) -> U256 {
 /// Given the xth root of g and yth root of g, finds the xyth root. If the roots are invalid or
 /// x and y are not coprime, None is returned. Otherwise, the function performs relevant modular
 /// inverse operations on the Bezout coefficients (returned as signed integers) and finds the xyth root.
-pub fn shamir_trick(mut xth_root: U256, mut yth_root: U256, x: U256, y: U256) -> Option<U256> {
+pub fn shamir_trick(mut xth_root: U2048, mut yth_root: U2048, x: U2048, y: U2048) -> Option<U2048> {
     // Check if the inputs are valid.
-    if mod_exp(xth_root, x, U256::from(super::MODULUS))
-        != mod_exp(yth_root, y, U256::from(super::MODULUS)) {
+    if mod_exp(xth_root, x, U2048::from_dec_str(super::MODULUS).unwrap())
+        != mod_exp(yth_root, y, U2048::from_dec_str(super::MODULUS).unwrap()) {
         return None;
     }
 
@@ -72,8 +70,8 @@ pub fn shamir_trick(mut xth_root: U256, mut yth_root: U256, x: U256, y: U256) ->
                 a = -a
             }
 
-            let combined_root: U256 = (mod_exp(xth_root, U256::from(b), U256::from(super::MODULUS))
-                * mod_exp(yth_root, U256::from(a), U256::from(super::MODULUS))) % U256::from(super::MODULUS);
+            let combined_root: U2048 = (mod_exp(xth_root, U2048::from(b), U2048::from_dec_str(super::MODULUS).unwrap())
+                * mod_exp(yth_root, U2048::from(a), U2048::from_dec_str(super::MODULUS).unwrap())) % U2048::from_dec_str(super::MODULUS).unwrap();
             return Some(combined_root);
         },
     }
@@ -81,25 +79,25 @@ pub fn shamir_trick(mut xth_root: U256, mut yth_root: U256, x: U256, y: U256) ->
 
 /// Computes the modular multiplicative inverse.
 /// NOTE: Does not check if gcd != 1(none exists if so).
-pub fn mod_inverse(elem: U256) -> U256 {
-    let (_, x, _) = extended_gcd(elem, U256::from(super::MODULUS));
+pub fn mod_inverse(elem: U2048) -> U2048 {
+    let (_, x, _) = extended_gcd(elem, U2048::from_dec_str(super::MODULUS).unwrap());
 
     // Accommodate for negative x coefficient
     if x < 0 {
-        // Since we're assuming that the U256::from(super::MODULUS) will always be larger than than coefficient in
-        // absolute value, we simply subtract x from the U256::from(super::MODULUS) to get a positive value mod N.
-        let pos_x = U256::from(super::MODULUS) - U256::from(x*-1);
-        return pos_x % U256::from(super::MODULUS);
+        // Since we're assuming that the U2048::from(super::MODULUS) will always be larger than than coefficient in
+        // absolute value, we simply subtract x from the U2048::from(super::MODULUS) to get a positive value mod N.
+        let pos_x = U2048::from_dec_str(super::MODULUS).unwrap() - U2048::from(x*-1);
+        return pos_x % U2048::from_dec_str(super::MODULUS).unwrap();
     }
-    return U256::from(x) % U256::from(super::MODULUS);
+    return U2048::from(x) % U2048::from_dec_str(super::MODULUS).unwrap();
 }
 
 /// Returns Bezout coefficients as *signed* integers (since they may be negative).
 /// Acts as a wrapper for extended_gcd.
-pub fn bezout(a: U256, b: U256) -> Option<(i128, i128)> {
+pub fn bezout(a: U2048, b: U2048) -> Option<(i128, i128)> {
     let (gcd, x, y) = extended_gcd(a, b);
     // Check if a and b are coprime
-    if gcd != U256::from(1) {
+    if gcd != U2048::from(1) {
         return None;
     }
     else {
@@ -111,12 +109,12 @@ pub fn bezout(a: U256, b: U256) -> Option<(i128, i128)> {
 /// NOTE: I assume that the absolute value of the Bezout coefficients are at most 64 bits(hence 128 bit
 /// signed integers). Otherwise, the function panics during the unwrap.
 /// Reference: https://math.stackexchange.com/questions/670405/does-the-extended-euclidean-algorithm-always-return-the-smallest-coefficients-of
-pub fn extended_gcd(a: U256, b: U256) -> (U256, i128, i128) {
+pub fn extended_gcd(a: U2048, b: U2048) -> (U2048, i128, i128) {
     let (mut s, mut old_s): (i128, i128) = (0, 1);
     let (mut t, mut old_t): (i128, i128) = (1, 0);
-    let (mut r, mut old_r): (U256, U256) = (b, a);
+    let (mut r, mut old_r): (U2048, U2048) = (b, a);
 
-    while r != U256::from(0) {
+    while r != U2048::from(0) {
         let quotient = old_r / r;
         let new_r = old_r - quotient * r;
         old_r = r;
@@ -136,15 +134,14 @@ pub fn extended_gcd(a: U256, b: U256) -> (U256, i128, i128) {
 /// Continuously hashes the input until the result is prime. Assumes input values are transcoded in
 /// little endian(uses parity-scale-codec).
 /// Consideration: Currently unclear about the impact of Lambda on the security of the scheme.
-pub fn hash_to_prime(elem: &[u8]) -> U256 {
+pub fn hash_to_prime(elem: &[u8]) -> U2048 {
     let mut hash = blake2_256(elem);
-
-    let mut result = U256::from(hash) % U256::from(super::LAMBDA);
+    let mut result = U2048::from_little_endian(&hash) % U2048::from(super::LAMBDA);
 
     // While the resulting hash is not a prime, keep trying
     while !miller_rabin(result) {
         hash = blake2_256(&hash);
-        result = U256::from(hash) % U256::from(super::LAMBDA);
+        result = U2048::from_little_endian(&hash) % U2048::from(super::LAMBDA);
     }
 
     return result;
@@ -154,10 +151,10 @@ pub fn hash_to_prime(elem: &[u8]) -> U256 {
 /// on the algorithm from the following link: https://en.wikipedia.org/wiki/Miller–Rabin_primality_test
 /// Complexity of the algorithm is O((log n)^4) in soft-O notation.
 /// In a production setting, one should use the probabilistic variant with larger integers.
-pub fn miller_rabin(n: U256) -> bool {
+pub fn miller_rabin(n: U2048) -> bool {
     // Find r and d such that 2^r * d + 1 = n
-    let r = (n-U256::from(1)).trailing_zeros();
-    let d = (n-U256::from(1)) >> U256::from(r);
+    let r = (n-U2048::from(1)).trailing_zeros();
+    let d = (n-U2048::from(1)) >> U2048::from(r);
 
     // See section: "Testing against small sets of bases" from the link:
     // https://en.wikipedia.org/wiki/Miller%E2%80%93Rabin_primality_test
@@ -165,16 +162,16 @@ pub fn miller_rabin(n: U256) -> bool {
 
     'outer: for &a in bases.iter() {
         // Annoying edge case to make sure a is within [2, n-2] for small n
-        if n-U256::from(2) < U256::from(a) { break; }
+        if n-U2048::from(2) < U2048::from(a) { break; }
 
-        let mut x = mod_exp(U256::from(a), d, n);
+        let mut x = mod_exp(U2048::from(a), d, n);
 
-        if x == U256::from(1) || x == (n-U256::from(1)) {
+        if x == U2048::from(1) || x == (n-U2048::from(1)) {
             continue;
         }
         for _ in 1..r {
-            x = mod_exp(x, U256::from(2), n);
-            if x == (n-U256::from(1)) {
+            x = mod_exp(x, U2048::from(2), n);
+            if x == (n-U2048::from(1)) {
                 continue 'outer;
             }
         }
@@ -185,7 +182,7 @@ pub fn miller_rabin(n: U256) -> bool {
 
 /// Given an element g and a set of elements x, computes the xith root of g^x for each element
 /// in the set. Runs in O(n log(n)).
-pub fn root_factor(g: U256, elems: &[U256]) -> Vec<U256> {
+pub fn root_factor(g: U2048, elems: &[U2048]) -> Vec<U2048> {
     if elems.len() == 1 {
         let mut ret = Vec::new();
         ret.push(g);
@@ -196,12 +193,12 @@ pub fn root_factor(g: U256, elems: &[U256]) -> Vec<U256> {
 
     let mut g_left = g;
     for i in 0..n_prime {
-        g_left = mod_exp(g_left, elems[i], U256::from(super::MODULUS));
+        g_left = mod_exp(g_left, elems[i], U2048::from_dec_str(super::MODULUS).unwrap());
     }
 
     let mut g_right = g;
     for i in n_prime..elems.len() {
-        g_right = mod_exp(g_right, elems[i], U256::from(super::MODULUS));
+        g_right = mod_exp(g_right, elems[i], U2048::from_dec_str(super::MODULUS).unwrap());
     }
 
     let mut left = root_factor(g_right, &elems[0..n_prime]);
@@ -214,69 +211,78 @@ pub fn root_factor(g: U256, elems: &[U256]) -> Vec<U256> {
 mod tests {
     use super::*;
     use crate::MODULUS;
+    use codec::{Encode};
+
+    #[test]
+    fn test_mul_mod() {
+        assert_eq!(mul_mod(U2048::from(121), U2048::from(12314), U2048::from_dec_str(MODULUS).unwrap()),
+                   U2048::from(12));
+        assert_eq!(mul_mod(U2048::from(128), U2048::from(23), U2048::from(75)),
+                   U2048::from(19));
+    }
 
     #[test]
     fn test_mod_exp() {
-        assert_eq!(mod_exp(U256::from(2), U256::from(7), U256::from(MODULUS)), U256::from(11));
-        assert_eq!(mod_exp(U256::from(7), U256::from(15), U256::from(MODULUS)), U256::from(5));
+        assert_eq!(mod_exp(U2048::from(2), U2048::from(7), U2048::from_dec_str(MODULUS).unwrap()), U2048::from(11));
+        assert_eq!(mod_exp(U2048::from(7), U2048::from(15), U2048::from_dec_str(MODULUS).unwrap()), U2048::from(5));
     }
 
     #[test]
     fn test_extended_gcd() {
-        assert_eq!(extended_gcd(U256::from(180), U256::from(150)), (U256::from(30), 1, -1));
-        assert_eq!(extended_gcd(U256::from(13), U256::from(17)), (U256::from(1), 4, -3));
+        assert_eq!(extended_gcd(U2048::from(180), U2048::from(150)), (U2048::from(30), 1, -1));
+        assert_eq!(extended_gcd(U2048::from(13), U2048::from(17)), (U2048::from(1), 4, -3));
     }
 
     #[test]
     fn test_bezout() {
-        assert_eq!(bezout(U256::from(4), U256::from(10)), None);
-        assert_eq!(bezout(U256::from(3434), U256::from(2423)), Some((-997, 1413)));
+        assert_eq!(bezout(U2048::from(4), U2048::from(10)), None);
+        assert_eq!(bezout(U2048::from(3434), U2048::from(2423)), Some((-997, 1413)));
     }
 
     #[test]
     fn test_shamir_trick() {
-        assert_eq!(shamir_trick(U256::from(11), U256::from(6), U256::from(7), U256::from(5)), Some(U256::from(7)));
-        assert_eq!(shamir_trick(U256::from(11), U256::from(7), U256::from(7), U256::from(11),), Some(U256::from(6)));
-        assert_eq!(shamir_trick(U256::from(6), U256::from(7), U256::from(5), U256::from(11)), Some(U256::from(11)));
-        assert_eq!(shamir_trick(U256::from(12), U256::from(7), U256::from(7), U256::from(11)), None);
+        assert_eq!(shamir_trick(U2048::from(11), U2048::from(6), U2048::from(7), U2048::from(5)), Some(U2048::from(7)));
+        assert_eq!(shamir_trick(U2048::from(11), U2048::from(7), U2048::from(7), U2048::from(11),), Some(U2048::from(6)));
+        assert_eq!(shamir_trick(U2048::from(6), U2048::from(7), U2048::from(5), U2048::from(11)), Some(U2048::from(11)));
+        assert_eq!(shamir_trick(U2048::from(12), U2048::from(7), U2048::from(7), U2048::from(11)), None);
     }
 
     #[test]
     fn test_mod_inverse() {
-        assert_eq!(mod_inverse(U256::from(9)), U256::from(3));
-        assert_eq!(mod_inverse(U256::from(6)), U256::from(11));
+        assert_eq!(mod_inverse(U2048::from(9)), U2048::from(3));
+        assert_eq!(mod_inverse(U2048::from(6)), U2048::from(11));
     }
 
     #[test]
     fn test_miller_rabin() {
-        assert_eq!(miller_rabin(U256::from(5)), true);
-        assert_eq!(miller_rabin(U256::from(7)), true);
-        assert_eq!(miller_rabin(U256::from(241)), true);
-        assert_eq!(miller_rabin(U256::from(7919)), true);
-        assert_eq!(miller_rabin(U256::from(48131)), true);
-        assert_eq!(miller_rabin(U256::from(76463)), true);
-        assert_eq!(miller_rabin(U256::from(4222234741u64)), true);
-        assert_eq!(miller_rabin(U256::from(187278659180417234321u128)), true);
+        assert_eq!(miller_rabin(U2048::from(5)), true);
+        assert_eq!(miller_rabin(U2048::from(7)), true);
+        assert_eq!(miller_rabin(U2048::from(241)), true);
+        assert_eq!(miller_rabin(U2048::from(7919)), true);
+        assert_eq!(miller_rabin(U2048::from(48131)), true);
+        assert_eq!(miller_rabin(U2048::from(76463)), true);
+        assert_eq!(miller_rabin(U2048::from(4222234741u64)), true);
+        assert_eq!(miller_rabin(U2048::from(187278659180417234321u128)), true);
 
-        assert_eq!(miller_rabin(U256::from(21)), false);
-        assert_eq!(miller_rabin(U256::from(87)), false);
-        assert_eq!(miller_rabin(U256::from(155)), false);
-        assert_eq!(miller_rabin(U256::from(9167)), false);
-        assert_eq!(miller_rabin(U256::from(102398)), false);
-        assert_eq!(miller_rabin(U256::from(801435)), false);
-        assert_eq!(miller_rabin(U256::from(51456119958243u128)), false);
+        assert_eq!(miller_rabin(U2048::from(21)), false);
+        assert_eq!(miller_rabin(U2048::from(87)), false);
+        assert_eq!(miller_rabin(U2048::from(155)), false);
+        assert_eq!(miller_rabin(U2048::from(9167)), false);
+        assert_eq!(miller_rabin(U2048::from(102398)), false);
+        assert_eq!(miller_rabin(U2048::from(801435)), false);
+        assert_eq!(miller_rabin(U2048::from(51456119958243u128)), false);
     }
 
     #[test]
     fn test_hash_to_prime() {
+        //assert_eq!(hash_to_prime(&[7, 10]), U2048::from(...));
         // Key values checked: 0, 1, 2
-        //assert_eq!(hash_to_prime(&U256::from(0).encode(), U256::max_value()/U256::from(8)), U256::from(1121));
     }
 
     #[test]
     fn test_root_factor() {
-        assert_eq!(root_factor(U256::from(2), &vec![U256::from(3), U256::from(5), U256::from(7), U256::from(11)]),
-                   vec![U256::from(2), U256::from(8), U256::from(5), U256::from(5)]);
+        assert_eq!(root_factor(U2048::from(2), &vec![U2048::from(3), U2048::from(5), U2048::from(7), U2048::from(11)]),
+                   vec![U2048::from(2), U2048::from(8), U2048::from(5), U2048::from(5)]);
     }
 
 

@@ -24,7 +24,6 @@ block_builder::api::{CheckInherentsResult, InherentData, self as block_builder_a
 runtime_api as client_api, impl_runtime_apis
 };
 use version::RuntimeVersion;
-use primitive_types::U256;
 #[cfg(feature = "std")]
 use version::NativeVersion;
 

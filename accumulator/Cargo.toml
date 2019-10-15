@@ -8,12 +8,9 @@ version = '1.0.0'
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-wasm-bindgen = "0.2"
-
-[dependencies.primitive-types]
-version = "0.5.1"
-default-features = false
-features = ["codec"]
+uint = { version="0.8", default-features=false }
+wasm-bindgen = { version="0.2.51" }
+clear_on_drop = { version="0.2.3", features=["nightly"] }
 
 [dependencies.codec]
 default-features = false
@@ -33,9 +30,10 @@ git = 'https://github.com/paritytech/substrate.git'
 package = 'sr-io'
 rev = '3ba0f2a2dbd37c31851a0ff1c1c0c47aa940de90'
 
-[build-dependencies.wasm-builder-runner]
-package = 'substrate-wasm-builder-runner'
-version = '1.0.2'
+[dependencies.serde]
+features = ['derive']
+optional = true
+version = '1.0.101'
 
 [features]
 default = ['std']
@@ -44,4 +42,6 @@ std = [
     'codec/std',
     'rstd/std',
     'runtime-io/std',
+    'uint/std',
+    'serde',
 ]

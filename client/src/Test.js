@@ -1,6 +1,12 @@
 import React, { useState } from 'react';
+import { u8aToBn } from '@polkadot/util';
+import { numberToU8a } from '@polkadot/util';
 
-const Loaded = ({ wasm }) => <button onClick={wasm.greet}>Click me</button>;
+const Loaded = ({ wasm }) => <button onClick={
+  console.log(BigInt(u8aToBn(wasm.hash_to_prime([7, 10]))))
+  }>
+    Click me
+  </button>;
 
 const Unloaded = ({ loading, loadWasm }) => {
   return loading ? (
@@ -17,7 +23,7 @@ const App = () => {
   const loadWasm = async () => {
     try {
       setLoading(true);
-      const wasm = await import('accumulator-client');
+      const wasm = await import('accumulator');
       setWasm(wasm);
     } finally {
       setLoading(false);

@@ -14,16 +14,6 @@ import Mint from './Mint';
 import Witness from './Witness';
 import Test from './Test';
 
-const Loaded = ({ wasm }) => <button onClick={wasm.greet}>Click me</button>;
-
-const Unloaded = ({ loading, loadWasm }) => {
-  return loading ? (
-    <div>Loading...</div>
-  ) : (
-    <button onClick={loadWasm}>Load library</button>
-  );
-};
-
 function Main () {
   const [accountAddress, setAccountAddress] = useState(null);
   const { apiState, keyring, keyringState } = useSubstrate();
@@ -51,7 +41,6 @@ function Main () {
 
   return (
     <div ref={contextRef}>
-
       <Sticky context={contextRef}>
         <AccountSelector setAccountAddress={setAccountAddress} />
       </Sticky>

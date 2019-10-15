@@ -42,7 +42,11 @@ export default function Mint (props) {
         </Form.Field>
         <Form.Field>
           <Button
-            onClick={() => setStatus('Hash created here.')}
+            onClick={
+              () => {
+                setStatus('')
+              }
+            }
             className='ui secondary button'
           >
             Get Hash

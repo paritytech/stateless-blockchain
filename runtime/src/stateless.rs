@@ -12,17 +12,17 @@
 /// the following code has not been checked for correctness nor has been optimized for efficiency.
 ///
 /// To-Do:
-/// - Defining structs, generics/traits(pubkey, U256, proofs)
+/// - Defining structs, generics/traits(pubkey, U2048, proofs)
 /// - Test block_builder API, 101th element
 
 use support::{decl_module, decl_storage, decl_event, ensure, StorageValue, dispatch::Result, traits::Get, print};
 use system::{ensure_signed, ensure_root};
-use primitive_types::{U256, H256};
+use primitive_types::H256;
 use rstd::prelude::Vec;
 use rstd::vec;
 use sr_primitives::{ApplyResult, ApplyOutcome};
 use codec::{Encode, Decode};
-use accumulator;
+use accumulator::*;
 
 #[cfg_attr(feature = "std", derive(Debug))]
 #[derive(Default, Clone, Encode, Decode, PartialEq, Eq, Copy)]
@@ -36,8 +36,8 @@ pub struct UTXO {
 pub struct Transaction {
     pub input: UTXO,
     pub output: UTXO,
-    pub witness: U256,
-    pub proof: U256,
+    pub witness: U2048,
+    pub proof: U2048,
     // Need to add signature here
 }
 
@@ -47,16 +47,16 @@ pub trait Trait: system::Trait {
 
 decl_storage! {
     trait Store for Module<T: Trait> as Stateless {
-        State get(get_state): U256 = U256::from(2);  // Use 2 as an arbitrary generator with "unknown" order.
-        SpentCoins get(get_spent_coins): Vec<(U256, U256)>;
-        NewCoins get(get_new_coins): Vec<U256>
+        State get(get_state): U2048 = U2048::from(2);  // Use 2 as an arbitrary generator with "unknown" order.
+        SpentCoins get(get_spent_coins): Vec<(U2048, U2048)>;
+        NewCoins get(get_new_coins): Vec<U2048>
     }
 }
 
 decl_event!(
     pub enum Event {
-        Deletion(U256, U256, U256),
-        Addition(U256, U256, U256),
+        Deletion(U2048, U2048, U2048),
+        Addition(U2048, U2048, U2048),
     }
 );
 
@@ -74,9 +74,9 @@ decl_module! {
         }
 
         /// Arbitrary replacement for Proof-of-Work to create new coins.
-        pub fn mint(origin, elem: U256) -> Result {
+        pub fn mint(origin, elem: U2048) -> Result {
             ensure_signed(origin)?;
-            let state = accumulator::subroutines::mod_exp(Self::get_state(), elem, U256::from(accumulator::MODULUS));
+            let state = subroutines::mod_exp(Self::get_state(), elem, U2048::from_dec_str(MODULUS).unwrap());
             State::put(state);
             Ok(())
         }
@@ -115,13 +115,13 @@ impl<T: Trait> Module<T> {
         }
 
         // Verify witness
-        let spent_elem = accumulator::subroutines::hash_to_prime(&transaction.input.encode());
-        if !(accumulator::witnesses::verify_mem_wit(Self::get_state(),
+        let spent_elem = subroutines::hash_to_prime(&transaction.input.encode());
+        if !(witnesses::verify_mem_wit(Self::get_state(),
                                                     spent_elem, transaction.witness, transaction.proof)) {
             return Ok(ApplyOutcome::Fail);
         }
 
-        let mut new_elem = accumulator::subroutines::hash_to_prime(&transaction.output.encode());
+        let mut new_elem = subroutines::hash_to_prime(&transaction.output.encode());
 
         // Update storage items.
         SpentCoins::append(&vec![(spent_elem, transaction.witness)]);
@@ -132,27 +132,27 @@ impl<T: Trait> Module<T> {
 
     /// Aggregates a set of accumulator elements + witnesses and batch deletes them from the accumulator.
     /// Returns the state after deletion, the product of the deleted elements, and a proof of exponentiation.
-    pub fn delete(elems: &Vec<(U256, U256)>) -> (U256, U256, U256) {
+    pub fn delete(elems: &Vec<(U2048, U2048)>) -> (U2048, U2048, U2048) {
         let (mut x_agg, mut new_state) = elems[0];
         for i in 1..elems.len() {
             let (x, witness) = elems[i];
-            new_state = accumulator::subroutines::shamir_trick(new_state, witness, x_agg, x).unwrap();
+            new_state = subroutines::shamir_trick(new_state, witness, x_agg, x).unwrap();
             x_agg *= x;
         }
-        let proof = accumulator::proofs::poe(new_state, x_agg, Self::get_state());
+        let proof = proofs::poe(new_state, x_agg, Self::get_state());
         return (new_state, x_agg, proof);
     }
 
     /// Aggregates a set of accumulator elements + witnesses and batch adds them to the accumulator.
     /// Returns the state after addition, the product of the added elements, and a proof of exponentiation.
-    pub fn add(state: U256, elems: &Vec<U256>) -> (U256, U256, U256) {
-        let mut x_agg = U256::from(1);
+    pub fn add(state: U2048, elems: &Vec<U2048>) -> (U2048, U2048, U2048) {
+        let mut x_agg = U2048::from(1);
         for i in 0..elems.len() {
             x_agg *= elems[i];
         }
 
-        let new_state = accumulator::subroutines::mod_exp(state, x_agg, U256::from(accumulator::MODULUS));
-        let proof = accumulator::proofs::poe(state, x_agg, new_state);
+        let new_state = subroutines::mod_exp(state, x_agg, U2048::from_dec_str(MODULUS).unwrap());
+        let proof = proofs::poe(state, x_agg, new_state);
         return (new_state, x_agg, proof);
     }
 }
@@ -183,7 +183,7 @@ mod tests {
         pub const MaximumBlockWeight: Weight = 1024;
         pub const MaximumBlockLength: u32 = 2 * 1024;
         pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
-        pub const RsaModulus: U256 = U256::from(13);
+        pub const RsaModulus: U2048 = U2048::from(13);
     }
 
     impl system::Trait for Test {
@@ -221,27 +221,27 @@ mod tests {
     #[test]
     fn test_add() {
         with_externalities(&mut new_test_ext(), || {
-            let elems = vec![U256::from(3), U256::from(5), U256::from(7)];
+            let elems = vec![U2048::from(3), U2048::from(5), U2048::from(7)];
             let (state, _, _) = Stateless::add(Stateless::get_state(), &elems);
-            assert_eq!(state, U256::from(5));
+            assert_eq!(state, U2048::from(5));
         });
     }
 
     #[test]
     fn test_del() {
         with_externalities(&mut new_test_ext(), || {
-            let elems = vec![U256::from(3), U256::from(5), U256::from(7)];
+            let elems = vec![U2048::from(3), U2048::from(5), U2048::from(7)];
             // Collect witnesses for the added elements
-            let witnesses = accumulator::witnesses::create_all_mem_wit(Stateless::get_state(), &elems);
+            let witnesses = witnesses::create_all_mem_wit(Stateless::get_state(), &elems);
 
             // Add elements
             let (state, _, _) = Stateless::add(Stateless::get_state(), &elems);
-            assert_eq!(state, U256::from(5));
+            assert_eq!(state, U2048::from(5));
 
             // Delete elements
             let deletions = vec![(elems[0], witnesses[0]), (elems[1], witnesses[1]), (elems[2], witnesses[2])];
             let (state, _, _) = Stateless::delete(&deletions);
-            assert_eq!(state, U256::from(2));
+            assert_eq!(state, U2048::from(2));
         });
     }
 
@@ -265,13 +265,13 @@ mod tests {
             };
 
             // 2. Hash each UTXO to a prime.
-            let elem_0 = accumulator::subroutines::hash_to_prime(&utxo_0.encode());
-            let elem_1 = accumulator::subroutines::hash_to_prime(&utxo_1.encode());
-            let elem_2 = accumulator::subroutines::hash_to_prime(&utxo_2.encode());
+            let elem_0 = subroutines::hash_to_prime(&utxo_0.encode());
+            let elem_1 = subroutines::hash_to_prime(&utxo_1.encode());
+            let elem_2 = subroutines::hash_to_prime(&utxo_2.encode());
             let elems = vec![elem_0, elem_1, elem_2];
 
             // 3. Produce witnesses for the added elements.
-            let witnesses = accumulator::witnesses::create_all_mem_wit(Stateless::get_state(), &elems);
+            let witnesses = witnesses::create_all_mem_wit(Stateless::get_state(), &elems);
 
             // 4. Add elements to the accumulator.
             let (state, _, _) = Stateless::add(Stateless::get_state(), &elems);
@@ -293,30 +293,30 @@ mod tests {
                 id: 2,
             };
 
-            let elem_3 = accumulator::subroutines::hash_to_prime(&utxo_3.encode());
-            let elem_4 = accumulator::subroutines::hash_to_prime(&utxo_4.encode());
-            let elem_5 = accumulator::subroutines::hash_to_prime(&utxo_5.encode());
+            let elem_3 = subroutines::hash_to_prime(&utxo_3.encode());
+            let elem_4 = subroutines::hash_to_prime(&utxo_4.encode());
+            let elem_5 = subroutines::hash_to_prime(&utxo_5.encode());
 
             // 6. Construct transactions.
             let tx_0 = Transaction {
                 input: utxo_0,
                 output: utxo_3,
                 witness: witnesses[0],
-                proof: accumulator::proofs::poe(witnesses[0], elem_0, Stateless::get_state()),
+                proof: proofs::poe(witnesses[0], elem_0, Stateless::get_state()),
             };
 
             let tx_1 = Transaction {
                 input: utxo_1,
                 output: utxo_4,
                 witness: witnesses[1],
-                proof: accumulator::proofs::poe(witnesses[1], elem_1, Stateless::get_state()),
+                proof: proofs::poe(witnesses[1], elem_1, Stateless::get_state()),
             };
 
             let tx_2 = Transaction {
                 input: utxo_2,
                 output: utxo_5,
                 witness: witnesses[2],
-                proof: accumulator::proofs::poe(witnesses[2], elem_2, Stateless::get_state()),
+                proof: proofs::poe(witnesses[2], elem_2, Stateless::get_state()),
             };
 
             // 7. Verify transactions. Note that this logic will eventually be executed automatically
@@ -329,7 +329,7 @@ mod tests {
             Stateless::on_finalize(System::block_number());
 
             assert_eq!(Stateless::get_state(),
-                       accumulator::subroutines::mod_exp(U256::from(2), elem_3 * elem_4 * elem_5, U256::from(accumulator::MODULUS)));
+                       subroutines::mod_exp(U2048::from(2), elem_3 * elem_4 * elem_5, U2048::from_dec_str(MODULUS).unwrap()));
 
         });
     }
@@ -337,8 +337,8 @@ mod tests {
     #[test]
     fn test_mint() {
         with_externalities(&mut new_test_ext(), || {
-            Stateless::mint(Origin::signed(1), U256::from(3));
-            assert_eq!(Stateless::get_state(), U256::from(8));
+            Stateless::mint(Origin::signed(1), U2048::from(3));
+            assert_eq!(Stateless::get_state(), U2048::from(8));
         });
     }
 
