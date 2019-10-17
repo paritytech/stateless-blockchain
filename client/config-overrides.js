@@ -1,4 +1,4 @@
-// From: https://prestonrichey.com/blog/react-rust-wasm/
+// Code courtesy of: https://prestonrichey.com/blog/react-rust-wasm/
 
 const path = require('path');
 

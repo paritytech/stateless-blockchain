@@ -11,12 +11,18 @@ crate-type = ["cdylib", "rlib"]
 uint = { version="0.8", default-features=false }
 wasm-bindgen = { version="0.2.51" }
 clear_on_drop = { version="0.2.3", features=["nightly"] }
+hex = { version="0.4.0", default-features=false }
 
 [dependencies.codec]
 default-features = false
 features = ['derive']
 package = 'parity-scale-codec'
 version = '1.0.0'
+
+[dependencies.primitive-types]
+version = "0.5.0"
+default-features = false
+features = ["codec"]
 
 [dependencies.accumulator]
 path = "../accumulator"

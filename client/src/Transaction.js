@@ -1,47 +1,57 @@
 import React, { useState } from 'react';
-import { Grid, Form, Input } from 'semantic-ui-react';
-
+import { Grid, Form, Input, Button } from 'semantic-ui-react';
 import { useSubstrate } from './substrate-lib';
 import { TxButton } from './substrate-lib/components';
+import keyring from '@polkadot/ui-keyring';
 
 export default function Transaction (props) {
   const { api } = useSubstrate();
   const [status, setStatus] = useState(null);
-  const { accountPair } = props;
+  const { accountPair, wasm } = props;
 
   const [formState, setFormState] = useState({
-    input: '',
-    output: '',
-    witness: '',
-    proof: ''
+    ID: '',
+    address: '',
+    witness: ''
   });
-  const { input, output, witness, proof } = formState;
+
+  const { ID, address, witness } = formState;
+
+  const [transaction, setTransaction] = useState('');
 
   const onChange = (_, data) =>
-    setFormState({ [data.name]: data.state });
+    setFormState(formState => ({ ...formState, [data.name]: data.value }));
+
+  function createTransaction () {
+    const input = wasm.create_utxo(keyring.decodeAddress(accountPair.address, true), BigInt(ID));
+    const output = wasm.create_utxo(keyring.decodeAddress(address, true), BigInt(ID));
+    const tx = wasm.create_transaction(input, output, new Uint8Array(witness));
+    setTransaction(transaction => { tx });
+    alert('Transaction created! Ready to submit to the blockchain.');
+  }
 
   return (
     <Grid.Column>
-      <h1>Construct and Submit Transaction</h1>
+      <h1>Spend UTXO</h1>
       <Form>
         <Form.Field>
           <Input
             onChange={onChange}
-            label='Enter Input UTXO'
+            label='Enter UTXO ID'
             fluid
-            state='input'
+            id='input'
             type='text'
-            name='input'
+            name='ID'
           />
         </Form.Field>
         <Form.Field>
           <Input
             onChange={onChange}
-            label='Enter Output UTXO'
+            label='Enter Output Address'
             fluid
             id='input'
             type='text'
-            name='output'
+            name='address'
           />
         </Form.Field>
         <Form.Field>
@@ -55,23 +65,22 @@ export default function Transaction (props) {
           />
         </Form.Field>
         <Form.Field>
-          <Input
-            onChange={onChange}
-            label='Enter Proof'
-            fluid
-            id='input'
-            type='text'
-            name='proof'
-          />
+          <Button
+            onClick={createTransaction}
+            className='ui secondary button'
+
+          >
+            Create Transaction
+          </Button>
         </Form.Field>
         <Form.Field>
           <TxButton
             accountPair={accountPair}
-            label='Submit Transaction'
+            label='Submit'
             setStatus={setStatus}
             type='TRANSACTION'
             attrs={{
-              params: [{ input, output, witness, proof }],
+              params: [transaction],
               tx: api.tx.stateless && api.tx.stateless.add_transaction
             }}
           />
