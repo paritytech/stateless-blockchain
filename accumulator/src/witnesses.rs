@@ -5,10 +5,10 @@ use crate::proofs;
 use rstd::prelude::Vec;
 use super::U2048;
 
-/// Verifies that a membership witness + proof are valid. Acts as a wrapper for the proof of
-/// exponentiation verifier.
-pub fn verify_mem_wit(state: U2048, elem: U2048, witness: U2048, proof: U2048) -> bool {
-    return proofs::verify_poe(witness, elem, state, proof);
+/// Verifies that a membership witness + proof for a set of accumulator elements are valid. Acts as a
+/// wrapper for the proof of exponentiation verifier.
+pub fn verify_agg_mem_wit(state: U2048, agg_elems: U2048, witness: U2048, proof: U2048) -> bool {
+    return proofs::verify_poe(witness, agg_elems, state, proof);
 }
 
 /// Updates a membership witness based on untracked additions and deletions. Algorithm is based on
@@ -57,10 +57,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_verify_mem_wit() {
+    fn test_verify_agg_mem_wit() {
         let proof = proofs::poe(U2048::from(2), U2048::from(12123), U2048::from(8));
-        assert_eq!(verify_mem_wit(U2048::from(8), U2048::from(12123), U2048::from(2), proof), true);
-        assert_eq!(verify_mem_wit(U2048::from(7), U2048::from(12123), U2048::from(2), proof), false);
+        assert_eq!(verify_agg_mem_wit(U2048::from(8), U2048::from(12123), U2048::from(2), proof), true);
+        assert_eq!(verify_agg_mem_wit(U2048::from(7), U2048::from(12123), U2048::from(2), proof), false);
     }
 
     #[test]

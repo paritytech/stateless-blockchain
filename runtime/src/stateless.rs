@@ -37,7 +37,6 @@ pub struct Transaction {
     pub input: UTXO,
     pub output: UTXO,
     pub witness: U2048,
-    pub proof: U2048,
     // Need to add signature here
 }
 
@@ -74,9 +73,9 @@ decl_module! {
         }
 
         /// Arbitrary replacement for Proof-of-Work to create new coins.
-        pub fn mint(origin, elem: U2048) -> Result {
+        pub fn mint(origin, elem: u64) -> Result {
             ensure_signed(origin)?;
-            let state = subroutines::mod_exp(Self::get_state(), elem, U2048::from_dec_str(MODULUS).unwrap());
+            let state = subroutines::mod_exp(Self::get_state(), U2048::from(elem), U2048::from_dec_str(MODULUS).unwrap());
             State::put(state);
             Ok(())
         }
@@ -110,14 +109,13 @@ impl<T: Trait> Module<T> {
     pub fn verify_transaction(transaction: Transaction) -> ApplyResult  {
         // Arbitrarily cap the number of pending transactions to 100
         // Also verify that the user is not spending to themselves
-        if SpentCoins::get().len() > 100 || transaction.input.pub_key == transaction.output.pub_key {
+        if SpentCoins::get().len() > 1 || transaction.input.pub_key == transaction.output.pub_key {
             return Ok(ApplyOutcome::Fail);
         }
 
         // Verify witness
         let spent_elem = subroutines::hash_to_prime(&transaction.input.encode());
-        if !(witnesses::verify_mem_wit(Self::get_state(),
-                                                    spent_elem, transaction.witness, transaction.proof)) {
+        if !Self::verify_witness(transaction.witness, spent_elem) {
             return Ok(ApplyOutcome::Fail);
         }
 
@@ -128,6 +126,11 @@ impl<T: Trait> Module<T> {
         NewCoins::append(&vec![new_elem]);
 
         Ok(ApplyOutcome::Success)
+    }
+
+    pub fn verify_witness(witness: U2048, elem: U2048) -> bool {
+        let result = subroutines::mod_exp(witness, elem, U2048::from_dec_str(MODULUS).unwrap());
+        return result == Self::get_state();
     }
 
     /// Aggregates a set of accumulator elements + witnesses and batch deletes them from the accumulator.
@@ -302,21 +305,18 @@ mod tests {
                 input: utxo_0,
                 output: utxo_3,
                 witness: witnesses[0],
-                proof: proofs::poe(witnesses[0], elem_0, Stateless::get_state()),
             };
 
             let tx_1 = Transaction {
                 input: utxo_1,
                 output: utxo_4,
                 witness: witnesses[1],
-                proof: proofs::poe(witnesses[1], elem_1, Stateless::get_state()),
             };
 
             let tx_2 = Transaction {
                 input: utxo_2,
                 output: utxo_5,
                 witness: witnesses[2],
-                proof: proofs::poe(witnesses[2], elem_2, Stateless::get_state()),
             };
 
             // 7. Verify transactions. Note that this logic will eventually be executed automatically
@@ -337,7 +337,7 @@ mod tests {
     #[test]
     fn test_mint() {
         with_externalities(&mut new_test_ext(), || {
-            Stateless::mint(Origin::signed(1), U2048::from(3));
+            Stateless::mint(Origin::signed(1), 3);
             assert_eq!(Stateless::get_state(), U2048::from(8));
         });
     }

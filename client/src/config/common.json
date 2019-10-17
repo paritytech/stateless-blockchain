@@ -2,7 +2,7 @@
   "APP_NAME": "substrate-front-end-tutorial",
   "DEVELOPMENT_KEYRING": true,
   "CUSTOM_TYPES": {
-    "U2048": "Vec<u8>",
+    "U2048": "[u8; 256]",
     "UTXO": {
       "pubkey": "Hash",
       "id": "u64"

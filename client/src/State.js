@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Card, Statistic, Grid } from 'semantic-ui-react';
 import { useSubstrate } from './substrate-lib';
 
+import { u8aToBn } from '@polkadot/util';
+
 export default function State (props) {
   const { api } = useSubstrate();
 
@@ -10,7 +12,8 @@ export default function State (props) {
 
   useEffect(() => {
     api.query.stateless.state(value => {
-      setCurrentValue(Number(value));
+      console.log(value);
+      setCurrentValue(Number(BigInt(u8aToBn(value))));
     });
   }, [api.query.stateless]);
 

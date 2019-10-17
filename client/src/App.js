@@ -12,10 +12,13 @@ import Transaction from './Transaction';
 import State from './State';
 import Mint from './Mint';
 import Witness from './Witness';
-import Test from './Test';
+
+const wasmObj = import('accumulator-client');
 
 function Main () {
   const [accountAddress, setAccountAddress] = useState(null);
+  const [wasm, setWasm] = useState(null);
+
   const { apiState, keyring, keyringState } = useSubstrate();
   const accountPair =
     accountAddress &&
@@ -39,6 +42,10 @@ function Main () {
 
   const contextRef = createRef();
 
+  wasmObj.then(wasm => {
+    setWasm(wasm);
+  });
+
   return (
     <div ref={contextRef}>
       <Sticky context={contextRef}>
@@ -48,18 +55,17 @@ function Main () {
         <Grid stackable columns='equal'>
           <Grid.Row>
             <Accounts />
-            <Mint accountPair={accountPair}/>
+            <Mint accountPair={accountPair} wasm={wasm}/>
           </Grid.Row>
           <Divider />
           <Grid.Row>
-            <Transaction accountPair={accountPair} />
+            <Transaction accountPair={accountPair} wasm={wasm} />
             <Events />
             <State accountPair={accountPair} />
           </Grid.Row>
           <Divider />
           <Grid.Row>
             <Witness accountPair={accountPair} />
-            <Test />
           </Grid.Row>
         </Grid>
         <DeveloperConsole />
