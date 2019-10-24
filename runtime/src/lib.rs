@@ -116,7 +116,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 /// `SLOT_DURATION` instead (like the timestamp module for calculating the
 /// minimum period).
 /// <https://research.web3.foundation/en/latest/polkadot/BABE/Babe/#6-practical-results>
-pub const MILLISECS_PER_BLOCK: u64 = 6000;
+pub const MILLISECS_PER_BLOCK: u64 = 60000;
 
 pub const SLOT_DURATION: u64 = MILLISECS_PER_BLOCK;
 
@@ -133,10 +133,10 @@ pub const PRIMARY_PROBABILITY: (u64, u64) = (1, 4);
 /// The version infromation used to identify this runtime when compiled natively.
 #[cfg(feature = "std")]
 pub fn native_version() -> NativeVersion {
-NativeVersion {
-    runtime_version: VERSION,
-    can_author_with: Default::default(),
-}
+    NativeVersion {
+        runtime_version: VERSION,
+        can_author_with: Default::default(),
+    }
 }
 
 parameter_types! {
@@ -208,7 +208,7 @@ impl indices::Trait for Runtime {
 }
 
 parameter_types! {
-    pub const MinimumPeriod: u64 = 5000;
+    pub const MinimumPeriod: u64 = 35000;
 }
 
 impl timestamp::Trait for Runtime {
@@ -329,7 +329,7 @@ impl block_builder_api::BlockBuilder<Block> for Runtime {
         /// to allow for aggregation during block finalization.
         /// *THIS IS UNTESTED*
         use support::IsSubType;
-        if let Some(&stateless::Call::add_transaction(transaction)) = IsSubType::<stateless::Module<Runtime>, Runtime>::is_sub_type(&extrinsic.function) {
+        if let Some(&stateless::Call::addTransaction(transaction)) = IsSubType::<stateless::Module<Runtime>, Runtime>::is_sub_type(&extrinsic.function) {
             return <stateless::Module<Runtime>>::verify_transaction(transaction);
         }
         Executive::apply_extrinsic(extrinsic)

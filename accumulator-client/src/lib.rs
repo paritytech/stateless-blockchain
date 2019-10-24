@@ -1,19 +1,19 @@
 use accumulator::*;
 use wasm_bindgen::prelude::*;
 use codec::{Encode, Decode};
-use hex;
+use primitive_types::H256;
 
 #[wasm_bindgen]
 #[derive(Encode, Decode)]
 pub struct UTXO {
-    pub_key: Vec<u8>,
+    pub_key: H256,
     id: u64,
 }
 
 #[wasm_bindgen]
 pub fn create_utxo(pub_key: &[u8], id: u64) -> UTXO {
     let result = UTXO {
-        pub_key: pub_key.to_vec(),
+        pub_key: H256::from_slice(pub_key),
         id,
     };
     return result;
@@ -25,7 +25,7 @@ pub fn get_utxo_elem(pub_key: &[u8], id: u64) -> Vec<u8> {
 }
 
 #[wasm_bindgen]
-#[derive(Encode, Decode)]
+#[derive(Encode, Decode, Serialize, Deserialize)]
 pub struct Transaction {
     input: UTXO,
     output: UTXO,
@@ -57,7 +57,7 @@ mod tests {
     #[test]
     fn test_hash_to_prime() {
         let utxo = UTXO {
-            pub_key: hex::decode("d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d").unwrap().to_vec(),
+            pub_key: H256::from_slice(hex::decode("d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d").unwrap()),
             id: 0,
         };
         assert_eq!(subroutines::hash_to_prime(&utxo.encode()), U2048::from_dec_str("2882671871935824533").unwrap());

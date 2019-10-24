@@ -18,6 +18,12 @@ features = ['derive']
 package = 'parity-scale-codec'
 version = '1.0.0'
 
+[dependencies.primitive-types]
+version = "0.5.0"
+default-features = false
+features = ["codec"]
+
+
 [dependencies.accumulator]
 path = "../accumulator"
 

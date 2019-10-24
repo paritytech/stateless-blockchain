@@ -23,5 +23,5 @@ construct_uint! {
 pub const MODULUS: &str = "13";
 
 /// Security parameter that represents the size of elements added to the accumulator.
-pub const LAMBDA: u64 = u64::max_value();
+pub const LAMBDA: u32 = u32::max_value();
 

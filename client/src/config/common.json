@@ -4,14 +4,13 @@
   "CUSTOM_TYPES": {
     "U2048": "[u8; 256]",
     "UTXO": {
-      "pubkey": "Hash",
+      "pub_key": "Hash",
       "id": "u64"
     },
     "Transaction": {
       "input": "UTXO",
       "output": "UTXO",
-      "witness": "U2048",
-      "proof": "U2048"
+      "witness": "U2048"
     }
   }
 }

@@ -140,6 +140,7 @@ pub fn hash_to_prime(elem: &[u8]) -> U2048 {
 
     // While the resulting hash is not a prime, keep trying
     while !miller_rabin(result) {
+        runtime_io::print("looping");
         hash = blake2_256(&hash);
         result = U2048::from_little_endian(&hash) % U2048::from(super::LAMBDA);
     }
@@ -147,18 +148,18 @@ pub fn hash_to_prime(elem: &[u8]) -> U2048 {
     return result;
 }
 
-/// Implements a deterministic variant of the Miller-Rabin primality test for u64 integers based
+/// Implements a deterministic variant of the Miller-Rabin primality test for u64/u32 integers based
 /// on the algorithm from the following link: https://en.wikipedia.org/wiki/Miller–Rabin_primality_test
 /// Complexity of the algorithm is O((log n)^4) in soft-O notation.
-/// In a production setting, one should use the probabilistic variant with larger integers.
 pub fn miller_rabin(n: U2048) -> bool {
     // Find r and d such that 2^r * d + 1 = n
     let r = (n-U2048::from(1)).trailing_zeros();
     let d = (n-U2048::from(1)) >> U2048::from(r);
 
-    // See section: "Testing against small sets of bases" from the link:
-    // https://en.wikipedia.org/wiki/Miller%E2%80%93Rabin_primality_test
-    let bases = [2,3,5,7,11,13,17,19,23,29,31,37,41];
+    // See https://stackoverflow.com/questions/7594307/simple-deterministic-primality-testing-for-small-numbers
+    //let bases = [2,3,5,7,11,13,17]; // Deterministic for 64 bit integers
+    //let bases = [2, 7, 61];  // Deterministic for 32 bit integers
+    let bases = [2];
 
     'outer: for &a in bases.iter() {
         // Annoying edge case to make sure a is within [2, n-2] for small n

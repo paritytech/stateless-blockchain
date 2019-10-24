@@ -22,6 +22,7 @@ use rstd::prelude::Vec;
 use rstd::vec;
 use sr_primitives::{ApplyResult, ApplyOutcome};
 use codec::{Encode, Decode};
+use runtime_io;
 use accumulator::*;
 
 #[cfg_attr(feature = "std", derive(Debug))]
@@ -65,9 +66,39 @@ decl_module! {
         // Initialize generic event
         fn deposit_event() = default;
 
+//        /// Receive request to execute a transaction.
+//        /// Verify the contents of a transaction and temporarily add it to a queue of verified transactions.
+//        /// This function will evolve as more implementation details related to transactions are added.
+//        /// NOTE: Only works if one transaction per user per block is submitted.
+//        pub fn addTransaction(origin, transaction: Transaction) -> Result {
+//            ensure_signed(origin)?;
+//
+//            // Arbitrarily cap the number of pending transactions to 100
+//            // Also verify that the user is not spending to themselves
+//            ensure!(SpentCoins::get().len() < 1, "Transaction queue full. Please try again next block.");
+//
+//            runtime_io::print(transaction.input.id);
+//            ensure!(transaction.input.pub_key != transaction.output.pub_key, "Cannot send coin to yourself.");
+//
+//            runtime_io::print("a");
+//
+//            // Verify witness
+//            let spent_elem = subroutines::hash_to_prime(&transaction.input.encode());
+//            ensure!(Self::verify_witness(transaction.witness, spent_elem), "Witness is invalid");
+//
+//            runtime_io::print("b");
+//
+//            let mut new_elem = subroutines::hash_to_prime(&transaction.output.encode());
+//
+//            // Update storage items.
+//            SpentCoins::append(&vec![(spent_elem, transaction.witness)]);
+//            NewCoins::append(&vec![new_elem]);
+//            Ok(())
+//        }
+
         /// Receive request to execute a transaction.
         /// NOTE: Only works if one transaction per user per block is submitted.
-        pub fn add_transaction(origin, transaction: Transaction) -> Result {
+        pub fn addTransaction(origin, transaction: Transaction) -> Result {
             ensure_signed(origin)?;
             Ok(())
         }
@@ -128,6 +159,7 @@ impl<T: Trait> Module<T> {
         Ok(ApplyOutcome::Success)
     }
 
+    /// Verify the witness of an element.
     pub fn verify_witness(witness: U2048, elem: U2048) -> bool {
         let result = subroutines::mod_exp(witness, elem, U2048::from_dec_str(MODULUS).unwrap());
         return result == Self::get_state();
@@ -321,9 +353,9 @@ mod tests {
 
             // 7. Verify transactions. Note that this logic will eventually be executed automatically
             // by the block builder API eventually.
-            assert_eq!(Stateless::verify_transaction(tx_0).unwrap(), ApplyOutcome::Success);
-            assert_eq!(Stateless::verify_transaction(tx_1).unwrap(), ApplyOutcome::Success);
-            assert_eq!(Stateless::verify_transaction(tx_2).unwrap(), ApplyOutcome::Success);
+            assert_ok!(Stateless::addTransaction(tx_0).unwrap());
+            assert_ok!(Stateless::verify_transaction(tx_1).unwrap());
+            assert_ok!(Stateless::verify_transaction(tx_2).unwrap());
 
             // 8. Finalize the block.
             Stateless::on_finalize(System::block_number());

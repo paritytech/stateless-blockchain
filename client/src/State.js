@@ -12,7 +12,6 @@ export default function State (props) {
 
   useEffect(() => {
     api.query.stateless.state(value => {
-      console.log(value);
       setCurrentValue(Number(BigInt(u8aToBn(value))));
     });
   }, [api.query.stateless]);
