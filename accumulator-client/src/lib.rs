@@ -25,24 +25,6 @@ pub fn get_utxo_elem(pub_key: &[u8], id: u64) -> Vec<u8> {
 }
 
 #[wasm_bindgen]
-#[derive(Encode, Decode, Serialize, Deserialize)]
-pub struct Transaction {
-    input: UTXO,
-    output: UTXO,
-    witness: Vec<u8>,
-}
-
-#[wasm_bindgen]
-pub fn create_transaction(input: UTXO, output: UTXO, witness: &[u8]) -> Transaction {
-    let result = Transaction {
-        input,
-        output,
-        witness: witness.to_vec(),
-    };
-    return result;
-}
-
-#[wasm_bindgen]
 pub fn hash_to_prime(elem: &[u8]) -> Vec<u8> {
     let mut result: [u8; 256] = [0; 256];  // Change this constant
     subroutines::hash_to_prime(elem).to_little_endian(&mut result);

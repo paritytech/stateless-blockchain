@@ -16,7 +16,7 @@
 /// - Test block_builder API, 101th element
 
 use support::{decl_module, decl_storage, decl_event, ensure, StorageValue, dispatch::Result, traits::Get, print};
-use system::{ensure_signed, ensure_root};
+use system::ensure_signed;
 use primitive_types::H256;
 use rstd::prelude::Vec;
 use rstd::vec;
@@ -28,16 +28,16 @@ use accumulator::*;
 #[cfg_attr(feature = "std", derive(Debug))]
 #[derive(Default, Clone, Encode, Decode, PartialEq, Eq, Copy)]
 pub struct UTXO {
-    pub pub_key: H256,
-    pub id: u64,
+    pub_key: H256,
+    id: u64,
 }
 
 #[cfg_attr(feature = "std", derive(Debug))]
-#[derive(Default, Clone, Encode, Decode, PartialEq, Eq, Copy)]
+#[derive(Default, Clone, Encode, Decode, PartialEq, Eq)]
 pub struct Transaction {
-    pub input: UTXO,
-    pub output: UTXO,
-    pub witness: U2048,
+    input: UTXO,
+    output: UTXO,
+    witness: Vec<u8>,
     // Need to add signature here
 }
 
@@ -66,40 +66,35 @@ decl_module! {
         // Initialize generic event
         fn deposit_event() = default;
 
-//        /// Receive request to execute a transaction.
-//        /// Verify the contents of a transaction and temporarily add it to a queue of verified transactions.
-//        /// This function will evolve as more implementation details related to transactions are added.
-//        /// NOTE: Only works if one transaction per user per block is submitted.
-//        pub fn addTransaction(origin, transaction: Transaction) -> Result {
-//            ensure_signed(origin)?;
-//
-//            // Arbitrarily cap the number of pending transactions to 100
-//            // Also verify that the user is not spending to themselves
-//            ensure!(SpentCoins::get().len() < 1, "Transaction queue full. Please try again next block.");
-//
-//            runtime_io::print(transaction.input.id);
-//            ensure!(transaction.input.pub_key != transaction.output.pub_key, "Cannot send coin to yourself.");
-//
-//            runtime_io::print("a");
-//
-//            // Verify witness
-//            let spent_elem = subroutines::hash_to_prime(&transaction.input.encode());
-//            ensure!(Self::verify_witness(transaction.witness, spent_elem), "Witness is invalid");
-//
-//            runtime_io::print("b");
-//
-//            let mut new_elem = subroutines::hash_to_prime(&transaction.output.encode());
-//
-//            // Update storage items.
-//            SpentCoins::append(&vec![(spent_elem, transaction.witness)]);
-//            NewCoins::append(&vec![new_elem]);
-//            Ok(())
-//        }
-
         /// Receive request to execute a transaction.
+        /// Verify the contents of a transaction and temporarily add it to a queue of verified transactions.
+        /// This function will evolve as more implementation details related to transactions are added.
         /// NOTE: Only works if one transaction per user per block is submitted.
         pub fn addTransaction(origin, transaction: Transaction) -> Result {
             ensure_signed(origin)?;
+            // Arbitrarily cap the number of pending transactions to 1
+            // Also verify that the user is not spending to themselves
+            ensure!(SpentCoins::get().len() < 1, "Transaction queue full. Please try again next block.");
+            ensure!(transaction.input.pub_key != transaction.output.pub_key, "Cannot send coin to yourself.");
+
+            runtime_io::print("a");
+
+            // Verify witness
+            let spent_elem = subroutines::hash_to_prime(&transaction.input.encode());
+
+            let witness = U2048::from_little_endian(&transaction.witness);
+            ensure!(Self::verify_witness(witness, spent_elem), "Witness is invalid");
+
+            runtime_io::print("b");
+
+            let mut new_elem = subroutines::hash_to_prime(&transaction.output.encode());
+
+            runtime_io::print("c");
+            runtime_io::print(new_elem.low_u64());
+
+            // Update storage items.
+            SpentCoins::append(&vec![(spent_elem, witness)]);
+            NewCoins::append(&vec![new_elem]);
             Ok(())
         }
 
@@ -117,10 +112,12 @@ decl_module! {
             if Self::get_spent_coins().len() > 0 {
                 // Delete spent coins from aggregator and distribute proof
                 let (state, agg, proof) = Self::delete(&Self::get_spent_coins());
+                runtime_io::print(agg.low_u64());
                 Self::deposit_event(Event::Deletion(state, agg, proof));
 
                 // Add new coins to aggregator and distribute proof
                 let (state, agg, proof) = Self::add(state, &Self::get_new_coins());
+                runtime_io::print(agg.low_u64());
                 Self::deposit_event(Event::Addition(state, agg, proof));
 
                 // Update state
@@ -135,30 +132,6 @@ decl_module! {
 }
 
 impl<T: Trait> Module<T> {
-    /// Verify the contents of a transaction and temporarily add it to a queue of verified transactions.
-    /// This function will evolve as more implementation details related to transactions are added.
-    pub fn verify_transaction(transaction: Transaction) -> ApplyResult  {
-        // Arbitrarily cap the number of pending transactions to 100
-        // Also verify that the user is not spending to themselves
-        if SpentCoins::get().len() > 1 || transaction.input.pub_key == transaction.output.pub_key {
-            return Ok(ApplyOutcome::Fail);
-        }
-
-        // Verify witness
-        let spent_elem = subroutines::hash_to_prime(&transaction.input.encode());
-        if !Self::verify_witness(transaction.witness, spent_elem) {
-            return Ok(ApplyOutcome::Fail);
-        }
-
-        let mut new_elem = subroutines::hash_to_prime(&transaction.output.encode());
-
-        // Update storage items.
-        SpentCoins::append(&vec![(spent_elem, transaction.witness)]);
-        NewCoins::append(&vec![new_elem]);
-
-        Ok(ApplyOutcome::Success)
-    }
-
     /// Verify the witness of an element.
     pub fn verify_witness(witness: U2048, elem: U2048) -> bool {
         let result = subroutines::mod_exp(witness, elem, U2048::from_dec_str(MODULUS).unwrap());
@@ -169,6 +142,7 @@ impl<T: Trait> Module<T> {
     /// Returns the state after deletion, the product of the deleted elements, and a proof of exponentiation.
     pub fn delete(elems: &Vec<(U2048, U2048)>) -> (U2048, U2048, U2048) {
         let (mut x_agg, mut new_state) = elems[0];
+        runtime_io::print("delete");
         for i in 1..elems.len() {
             let (x, witness) = elems[i];
             new_state = subroutines::shamir_trick(new_state, witness, x_agg, x).unwrap();
@@ -182,6 +156,7 @@ impl<T: Trait> Module<T> {
     /// Returns the state after addition, the product of the added elements, and a proof of exponentiation.
     pub fn add(state: U2048, elems: &Vec<U2048>) -> (U2048, U2048, U2048) {
         let mut x_agg = U2048::from(1);
+        runtime_io::print("add");
         for i in 0..elems.len() {
             x_agg *= elems[i];
         }
@@ -353,9 +328,9 @@ mod tests {
 
             // 7. Verify transactions. Note that this logic will eventually be executed automatically
             // by the block builder API eventually.
-            assert_ok!(Stateless::addTransaction(tx_0).unwrap());
-            assert_ok!(Stateless::verify_transaction(tx_1).unwrap());
-            assert_ok!(Stateless::verify_transaction(tx_2).unwrap());
+            assert_ok!(Stateless::addTransaction(tx_0));
+            assert_ok!(Stateless::addTransaction(tx_1));
+            assert_ok!(Stateless::addTransaction(tx_2));
 
             // 8. Finalize the block.
             Stateless::on_finalize(System::block_number());

@@ -10,7 +10,7 @@
     "Transaction": {
       "input": "UTXO",
       "output": "UTXO",
-      "witness": "U2048"
+      "witness": "Vec<u8>"
     }
   }
 }

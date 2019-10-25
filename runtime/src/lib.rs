@@ -208,7 +208,7 @@ impl indices::Trait for Runtime {
 }
 
 parameter_types! {
-    pub const MinimumPeriod: u64 = 35000;
+    pub const MinimumPeriod: u64 = 15000;
 }
 
 impl timestamp::Trait for Runtime {
@@ -325,13 +325,6 @@ impl client_api::Metadata<Block> for Runtime {
 
 impl block_builder_api::BlockBuilder<Block> for Runtime {
     fn apply_extrinsic(extrinsic: <Block as BlockT>::Extrinsic) -> ApplyResult {
-        /// Watch for and verify incoming transactions. The actual extrinsics will not be applied
-        /// to allow for aggregation during block finalization.
-        /// *THIS IS UNTESTED*
-        use support::IsSubType;
-        if let Some(&stateless::Call::addTransaction(transaction)) = IsSubType::<stateless::Module<Runtime>, Runtime>::is_sub_type(&extrinsic.function) {
-            return <stateless::Module<Runtime>>::verify_transaction(transaction);
-        }
         Executive::apply_extrinsic(extrinsic)
     }
 

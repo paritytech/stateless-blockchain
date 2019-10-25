@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Feed, Grid } from 'semantic-ui-react';
 
 import { useSubstrate } from './substrate-lib';
+import { hexToBn } from '@polkadot/util'
 
 export default function Events (props) {
   const { api } = useSubstrate();
@@ -30,7 +31,7 @@ export default function Events (props) {
 
         // loop through each of the parameters, displaying the type and data
         const params = event.data.map((data, index) =>
-          `${types[index].type}: ${data.toString()}`
+          `${types[index].type}: ${hexToBn(data.toString(), { isLe: true, isNegative: false })}`
         );
 
         setEventFeed(e => [{

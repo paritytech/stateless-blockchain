@@ -140,7 +140,6 @@ pub fn hash_to_prime(elem: &[u8]) -> U2048 {
 
     // While the resulting hash is not a prime, keep trying
     while !miller_rabin(result) {
-        runtime_io::print("looping");
         hash = blake2_256(&hash);
         result = U2048::from_little_endian(&hash) % U2048::from(super::LAMBDA);
     }
@@ -158,8 +157,7 @@ pub fn miller_rabin(n: U2048) -> bool {
 
     // See https://stackoverflow.com/questions/7594307/simple-deterministic-primality-testing-for-small-numbers
     //let bases = [2,3,5,7,11,13,17]; // Deterministic for 64 bit integers
-    //let bases = [2, 7, 61];  // Deterministic for 32 bit integers
-    let bases = [2];
+    let bases = [2, 7, 61];  // Deterministic for 32 bit integers
 
     'outer: for &a in bases.iter() {
         // Annoying edge case to make sure a is within [2, n-2] for small n

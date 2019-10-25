@@ -3,6 +3,8 @@ import { Grid, Form, Input, Button } from 'semantic-ui-react';
 import { useSubstrate } from './substrate-lib';
 import { TxButton } from './substrate-lib/components';
 import keyring from '@polkadot/ui-keyring';
+import { bnToU8a } from '@polkadot/util';
+import { U8a } from '@polkadot/types/codec';
 
 export default function Transaction (props) {
   const { api } = useSubstrate();
@@ -32,8 +34,9 @@ export default function Transaction (props) {
 
     const input = { 'pub_key': sender, 'id': id_num };
     const output = { 'pub_key': receiver, 'id': id_num };
-    let new_witness = new Uint8Array(witness);
-    let tx = { input, output, new_witness}
+
+    let new_witness = new U8a(bnToU8a(BigInt(witness), 2048, true));
+    let tx = { input, output, 'witness': new_witness}
     setFormState(formState => ({ ...formState, transaction: tx }));
     alert('Transaction created! Ready to submit to the blockchain.');
   }
