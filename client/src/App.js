@@ -1,10 +1,8 @@
 import React, { useState, createRef } from 'react';
 import { Container, Dimmer, Loader, Grid, Sticky, Divider } from 'semantic-ui-react';
-
 import 'semantic-ui-css/semantic.min.css';
 import { SubstrateContextProvider, useSubstrate } from './substrate-lib';
 import { DeveloperConsole } from './substrate-lib/components';
-
 import AccountSelector from './AccountSelector';
 import Accounts from './Accounts';
 import Events from './Events';
@@ -59,13 +57,13 @@ function Main () {
           </Grid.Row>
           <Divider />
           <Grid.Row>
-            <Transaction accountPair={accountPair} wasm={wasm} />
+            <Transaction accountPair={accountPair} />
             <Events />
             <State accountPair={accountPair} />
           </Grid.Row>
           <Divider />
           <Grid.Row>
-            <Witness accountPair={accountPair} />
+            <Witness wasm={wasm} />
           </Grid.Row>
         </Grid>
         <DeveloperConsole />

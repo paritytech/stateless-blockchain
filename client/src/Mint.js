@@ -24,17 +24,17 @@ export default function Mint (props) {
     const utxo = wasm.get_utxo_elem(keyring.decodeAddress(accountPair.address, true), BigInt(ID));
     const hash = BigInt(u8aToBn(wasm.hash_to_prime(new Uint8Array(utxo))));
     setUTXO(UTXO => ({ ...UTXO, elem: hash }));
-    alert('The value of the UTXO is: ' + hash);
+    alert('The value of the coin is: ' + hash);
   }
 
   return (
     <Grid.Column>
-      <h1>Mint UTXO</h1>
+      <h1>Mint Coin</h1>
       <Form>
         <Form.Field>
           <Input
             onChange={onChange}
-            label='Enter ID for UTXO'
+            label='Enter ID for Coin'
             fluid
             id='input'
             type='text'
@@ -53,7 +53,7 @@ export default function Mint (props) {
         <Form.Field>
           <TxButton
             accountPair={accountPair}
-            label='Add UTXO to Accumulator'
+            label='Add Coin to Accumulator'
             setStatus={setStatus}
             type='TRANSACTION'
             attrs={{

@@ -25,6 +25,7 @@ use codec::{Encode, Decode};
 use runtime_io;
 use accumulator::*;
 
+/// At the moment, this particular implementation resembles more closely an NFT model.
 #[cfg_attr(feature = "std", derive(Debug))]
 #[derive(Default, Clone, Encode, Decode, PartialEq, Eq, Copy)]
 pub struct UTXO {
@@ -32,13 +33,15 @@ pub struct UTXO {
     id: u64,
 }
 
+/// Primitive transaction model with one input and one output. The use of a signature is currently
+/// omitted for simplistic purposes.
 #[cfg_attr(feature = "std", derive(Debug))]
 #[derive(Default, Clone, Encode, Decode, PartialEq, Eq)]
 pub struct Transaction {
     input: UTXO,
     output: UTXO,
     witness: Vec<u8>,
-    // Need to add signature here
+    // Would hypothetically include a signature here.
 }
 
 pub trait Trait: system::Trait {
@@ -72,12 +75,10 @@ decl_module! {
         /// NOTE: Only works if one transaction per user per block is submitted.
         pub fn addTransaction(origin, transaction: Transaction) -> Result {
             ensure_signed(origin)?;
-            // Arbitrarily cap the number of pending transactions to 1
+            // Arbitrarily cap the number of pending transactions to 100
             // Also verify that the user is not spending to themselves
-            ensure!(SpentCoins::get().len() < 1, "Transaction queue full. Please try again next block.");
+            ensure!(SpentCoins::get().len() < 100, "Transaction queue full. Please try again next block.");
             ensure!(transaction.input.pub_key != transaction.output.pub_key, "Cannot send coin to yourself.");
-
-            runtime_io::print("a");
 
             // Verify witness
             let spent_elem = subroutines::hash_to_prime(&transaction.input.encode());
@@ -85,12 +86,7 @@ decl_module! {
             let witness = U2048::from_little_endian(&transaction.witness);
             ensure!(Self::verify_witness(witness, spent_elem), "Witness is invalid");
 
-            runtime_io::print("b");
-
             let mut new_elem = subroutines::hash_to_prime(&transaction.output.encode());
-
-            runtime_io::print("c");
-            runtime_io::print(new_elem.low_u64());
 
             // Update storage items.
             SpentCoins::append(&vec![(spent_elem, witness)]);
@@ -142,7 +138,6 @@ impl<T: Trait> Module<T> {
     /// Returns the state after deletion, the product of the deleted elements, and a proof of exponentiation.
     pub fn delete(elems: &Vec<(U2048, U2048)>) -> (U2048, U2048, U2048) {
         let (mut x_agg, mut new_state) = elems[0];
-        runtime_io::print("delete");
         for i in 1..elems.len() {
             let (x, witness) = elems[i];
             new_state = subroutines::shamir_trick(new_state, witness, x_agg, x).unwrap();
@@ -156,7 +151,6 @@ impl<T: Trait> Module<T> {
     /// Returns the state after addition, the product of the added elements, and a proof of exponentiation.
     pub fn add(state: U2048, elems: &Vec<U2048>) -> (U2048, U2048, U2048) {
         let mut x_agg = U2048::from(1);
-        runtime_io::print("add");
         for i in 0..elems.len() {
             x_agg *= elems[i];
         }
@@ -328,9 +322,9 @@ mod tests {
 
             // 7. Verify transactions. Note that this logic will eventually be executed automatically
             // by the block builder API eventually.
-            assert_ok!(Stateless::addTransaction(tx_0));
-            assert_ok!(Stateless::addTransaction(tx_1));
-            assert_ok!(Stateless::addTransaction(tx_2));
+            Stateless::addTransaction(tx_0);
+            Stateless::addTransaction(tx_1);
+            Stateless::addTransaction(tx_2);
 
             // 8. Finalize the block.
             Stateless::on_finalize(System::block_number());

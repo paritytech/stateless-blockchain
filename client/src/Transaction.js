@@ -9,13 +9,13 @@ import { U8a } from '@polkadot/types/codec';
 export default function Transaction (props) {
   const { api } = useSubstrate();
   const [status, setStatus] = useState(null);
-  const { accountPair, wasm } = props;
+  const { accountPair } = props;
 
   const [formState, setFormState] = useState({
     ID: '',
     address: '',
     witness: '',
-    transaction: '',
+    transaction: ''
   });
 
   const { ID, address, witness, transaction } = formState;
@@ -30,25 +30,25 @@ export default function Transaction (props) {
   function createTransaction () {
     const sender = keyring.decodeAddress(accountPair.address, true);
     const receiver = keyring.decodeAddress(address, true);
-    const id_num = BigInt(ID);
+    const idNum = BigInt(ID);
 
-    const input = { 'pub_key': sender, 'id': id_num };
-    const output = { 'pub_key': receiver, 'id': id_num };
+    const input = { sender, idNum };
+    const output = { receiver, idNum };
 
-    let new_witness = new U8a(bnToU8a(BigInt(witness), 2048, true));
-    let tx = { input, output, 'witness': new_witness}
+    const newWitness = new U8a(bnToU8a(BigInt(witness), 2048, true));
+    const tx = { input, output, newWitness };
     setFormState(formState => ({ ...formState, transaction: tx }));
     alert('Transaction created! Ready to submit to the blockchain.');
   }
 
   return (
     <Grid.Column>
-      <h1>Spend UTXO</h1>
+      <h1>Spend Coin</h1>
       <Form>
         <Form.Field>
           <Input
             onChange={onChange}
-            label='Enter UTXO ID'
+            label='Enter Coin ID'
             fluid
             id='input'
             type='text'

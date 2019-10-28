@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Feed, Grid } from 'semantic-ui-react';
 
 import { useSubstrate } from './substrate-lib';
-import { hexToBn } from '@polkadot/util'
+import { hexToBn } from '@polkadot/util';
 
 export default function Events (props) {
   const { api } = useSubstrate();

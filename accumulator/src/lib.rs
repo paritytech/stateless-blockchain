@@ -18,8 +18,7 @@ construct_uint! {
 }
 
 /// Defines the RSA group. Currently uses a temporary value for testing.
-/// RSA 100: "1522605027922533360535618378132637429718068114961380688657908494580122963258952897654000350692006139"
-/// NOTE: Tests only work for MODULUS = 13
+/// Example modulus -> RSA 100: "1522605027922533360535618378132637429718068114961380688657908494580122963258952897654000350692006139"
 pub const MODULUS: &str = "13";
 
 /// Security parameter that represents the size of elements added to the accumulator.
