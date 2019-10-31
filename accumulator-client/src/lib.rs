@@ -31,16 +31,14 @@ pub fn hash_to_prime(elem: &[u8]) -> Vec<u8> {
     return result.to_vec();
 }
 
-/// Need to test
 #[wasm_bindgen]
-pub fn get_witness(old_state: &[u8], elem: &[u8], agg: &[u8]) -> Vec<u8> {
+pub fn get_witness(old_state: &[u8], agg: &[u8], elem: &[u8]) -> Vec<u8> {
     let mut result: [u8; 256] = [0; 256];
-    witnesses::create_single_mem_wit(U2048::from_little_endian(old_state), U2048::from_little_endian(elem),
-                                     U2048::from_little_endian(agg)).unwrap().to_little_endian(&mut result);
+    witnesses::mem_wit_create(U2048::from_little_endian(old_state),  U2048::from_little_endian(agg),
+                              U2048::from_little_endian(elem)).unwrap().to_little_endian(&mut result);
     return result.to_vec();
 }
 
-/// Need to test
 #[wasm_bindgen]
 pub fn update_witness(elem: &[u8], witness: &[u8], new_state: &[u8], added: &[u8], deleted: &[u8]) -> Vec<u8> {
     let mut result: [u8; 256] = [0; 256];

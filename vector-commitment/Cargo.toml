@@ -1,0 +1,10 @@
+[package]
+authors = ['andrewtam']
+edition = '2018'
+name = 'vector-commitment'
+version = '1.0.0'
+
+[dependencies.accumulator]
+path = "../accumulator"
+
+[workspace]

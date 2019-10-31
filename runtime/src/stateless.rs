@@ -10,10 +10,6 @@
 /// NOTE: This repository is experimental and is not meant to be used in production. The design choices
 /// made in this runtime are impractical from both a security and usability standpoint. Additionally,
 /// the following code has not been checked for correctness nor has been optimized for efficiency.
-///
-/// To-Do:
-/// - Defining structs, generics/traits(pubkey, U2048, proofs)
-/// - Test block_builder API, 101th element
 
 use support::{decl_module, decl_storage, decl_event, ensure, StorageValue, dispatch::Result, traits::Get, print};
 use system::ensure_signed;
@@ -71,20 +67,18 @@ decl_module! {
 
         /// Receive request to execute a transaction.
         /// Verify the contents of a transaction and temporarily add it to a queue of verified transactions.
-        /// This function will evolve as more implementation details related to transactions are added.
         /// NOTE: Only works if one transaction per user per block is submitted.
         pub fn addTransaction(origin, transaction: Transaction) -> Result {
             ensure_signed(origin)?;
             // Arbitrarily cap the number of pending transactions to 100
-            // Also verify that the user is not spending to themselves
             ensure!(SpentCoins::get().len() < 100, "Transaction queue full. Please try again next block.");
+            // Also verify that the user is not spending to themselves
             ensure!(transaction.input.pub_key != transaction.output.pub_key, "Cannot send coin to yourself.");
 
             // Verify witness
             let spent_elem = subroutines::hash_to_prime(&transaction.input.encode());
-
             let witness = U2048::from_little_endian(&transaction.witness);
-            ensure!(Self::verify_witness(witness, spent_elem), "Witness is invalid");
+            ensure!(witnesses::verify_mem_wit(State::get(), witness, spent_elem), "Witness is invalid");
 
             let mut new_elem = subroutines::hash_to_prime(&transaction.output.encode());
 
@@ -107,13 +101,11 @@ decl_module! {
             // Clause here to protect against empty blocks
             if Self::get_spent_coins().len() > 0 {
                 // Delete spent coins from aggregator and distribute proof
-                let (state, agg, proof) = Self::delete(&Self::get_spent_coins());
-                runtime_io::print(agg.low_u64());
+                let (state, agg, proof) = accumulator::batch_delete(State::get(), &Self::get_spent_coins());
                 Self::deposit_event(Event::Deletion(state, agg, proof));
 
                 // Add new coins to aggregator and distribute proof
-                let (state, agg, proof) = Self::add(state, &Self::get_new_coins());
-                runtime_io::print(agg.low_u64());
+                let (state, agg, proof) = accumulator::batch_add(state, &Self::get_new_coins());
                 Self::deposit_event(Event::Addition(state, agg, proof));
 
                 // Update state
@@ -124,40 +116,6 @@ decl_module! {
             SpentCoins::kill();
             NewCoins::kill();
         }
-    }
-}
-
-impl<T: Trait> Module<T> {
-    /// Verify the witness of an element.
-    pub fn verify_witness(witness: U2048, elem: U2048) -> bool {
-        let result = subroutines::mod_exp(witness, elem, U2048::from_dec_str(MODULUS).unwrap());
-        return result == Self::get_state();
-    }
-
-    /// Aggregates a set of accumulator elements + witnesses and batch deletes them from the accumulator.
-    /// Returns the state after deletion, the product of the deleted elements, and a proof of exponentiation.
-    pub fn delete(elems: &Vec<(U2048, U2048)>) -> (U2048, U2048, U2048) {
-        let (mut x_agg, mut new_state) = elems[0];
-        for i in 1..elems.len() {
-            let (x, witness) = elems[i];
-            new_state = subroutines::shamir_trick(new_state, witness, x_agg, x).unwrap();
-            x_agg *= x;
-        }
-        let proof = proofs::poe(new_state, x_agg, Self::get_state());
-        return (new_state, x_agg, proof);
-    }
-
-    /// Aggregates a set of accumulator elements + witnesses and batch adds them to the accumulator.
-    /// Returns the state after addition, the product of the added elements, and a proof of exponentiation.
-    pub fn add(state: U2048, elems: &Vec<U2048>) -> (U2048, U2048, U2048) {
-        let mut x_agg = U2048::from(1);
-        for i in 0..elems.len() {
-            x_agg *= elems[i];
-        }
-
-        let new_state = subroutines::mod_exp(state, x_agg, U2048::from_dec_str(MODULUS).unwrap());
-        let proof = proofs::poe(state, x_agg, new_state);
-        return (new_state, x_agg, proof);
     }
 }
 
@@ -226,7 +184,7 @@ mod tests {
     fn test_add() {
         with_externalities(&mut new_test_ext(), || {
             let elems = vec![U2048::from(3), U2048::from(5), U2048::from(7)];
-            let (state, _, _) = Stateless::add(Stateless::get_state(), &elems);
+            let (state, _, _) = accumulator::batch_add(Stateless::get_state(), &elems);
             assert_eq!(state, U2048::from(5));
         });
     }
@@ -239,12 +197,12 @@ mod tests {
             let witnesses = witnesses::create_all_mem_wit(Stateless::get_state(), &elems);
 
             // Add elements
-            let (state, _, _) = Stateless::add(Stateless::get_state(), &elems);
+            let (state, _, _) = accumulator::batch_add(Stateless::get_state(), &elems);
             assert_eq!(state, U2048::from(5));
 
             // Delete elements
             let deletions = vec![(elems[0], witnesses[0]), (elems[1], witnesses[1]), (elems[2], witnesses[2])];
-            let (state, _, _) = Stateless::delete(&deletions);
+            let (state, _, _) = accumulator::batch_delete(Stateless::get_state(), &deletions);
             assert_eq!(state, U2048::from(2));
         });
     }
@@ -278,7 +236,7 @@ mod tests {
             let witnesses = witnesses::create_all_mem_wit(Stateless::get_state(), &elems);
 
             // 4. Add elements to the accumulator.
-            let (state, _, _) = Stateless::add(Stateless::get_state(), &elems);
+            let (state, _, _) = accumulator::batch_add(Stateless::get_state(), &elems);
             State::put(state);
 
             // 5. Construct new UTXOs and derive integer representations.
@@ -302,29 +260,35 @@ mod tests {
             let elem_5 = subroutines::hash_to_prime(&utxo_5.encode());
 
             // 6. Construct transactions.
+            let mut witness_0: [u8; 256] = [0; 256];
+            witnesses[0].to_little_endian(&mut witness_0);
             let tx_0 = Transaction {
                 input: utxo_0,
                 output: utxo_3,
-                witness: witnesses[0],
+                witness: witness_0.to_vec(),
             };
 
+            let mut witness_1: [u8; 256] = [0; 256];
+            witnesses[1].to_little_endian(&mut witness_1);
             let tx_1 = Transaction {
                 input: utxo_1,
                 output: utxo_4,
-                witness: witnesses[1],
+                witness: witness_1.to_vec(),
             };
 
+            let mut witness_2: [u8; 256] = [0; 256];
+            witnesses[2].to_little_endian(&mut witness_2);
             let tx_2 = Transaction {
                 input: utxo_2,
                 output: utxo_5,
-                witness: witnesses[2],
+                witness: witness_2.to_vec(),
             };
 
             // 7. Verify transactions. Note that this logic will eventually be executed automatically
             // by the block builder API eventually.
-            Stateless::addTransaction(tx_0);
-            Stateless::addTransaction(tx_1);
-            Stateless::addTransaction(tx_2);
+            Stateless::addTransaction(Origin::signed(1), tx_0);
+            Stateless::addTransaction(Origin::signed(1), tx_1);
+            Stateless::addTransaction(Origin::signed(1), tx_2);
 
             // 8. Finalize the block.
             Stateless::on_finalize(System::block_number());

@@ -21,7 +21,7 @@ export default function Witness (props) {
     setFormState(formState => ({ ...formState, [data.name]: data.value }));
 
   function getWitness () {
-    const newWitness = BigInt(u8aToBn(wasm.get_witness(bnToU8a(oldState), bnToU8a(elem), bnToU8a(added))));
+    const newWitness = BigInt(u8aToBn(wasm.get_witness(bnToU8a(oldState), bnToU8a(added), bnToU8a(elem))));
     alert('The witness is: ' + newWitness);
   }
 

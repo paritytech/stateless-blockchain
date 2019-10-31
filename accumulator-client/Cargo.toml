@@ -23,7 +23,6 @@ version = "0.5.0"
 default-features = false
 features = ["codec"]
 
-
 [dependencies.accumulator]
 path = "../accumulator"
 

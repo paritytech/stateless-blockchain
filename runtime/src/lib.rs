@@ -20,8 +20,8 @@ use babe::{AuthorityId as BabeId};
 use grandpa::{AuthorityId as GrandpaId, AuthorityWeight as GrandpaWeight};
 use grandpa::fg_primitives::{self, ScheduledChange};
 use client::{
-block_builder::api::{CheckInherentsResult, InherentData, self as block_builder_api},
-runtime_api as client_api, impl_runtime_apis
+    block_builder::api::{CheckInherentsResult, InherentData, self as block_builder_api},
+    runtime_api as client_api, impl_runtime_apis
 };
 use version::RuntimeVersion;
 #[cfg(feature = "std")]

@@ -18,12 +18,7 @@ export default function State (props) {
 
   return (
     <Grid.Column>
-      <Card>
-        <Card.Content textAlign='center'>
-          <Statistic label='Accumulator State' />
-          <p> {currentValue} </p>
-        </Card.Content>
-      </Card>
+      <h3> Accumulator Value: {currentValue} </h3>
     </Grid.Column>
   );
 }

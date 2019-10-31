@@ -36,7 +36,10 @@ export default function Transaction (props) {
     const output = { receiver, idNum };
 
     const newWitness = new U8a(bnToU8a(BigInt(witness), 2048, true));
-    const tx = { input, output, newWitness };
+
+    const signature = accountPair.sign(idNum);
+
+    const tx = { input, output, newWitness, signature };
     setFormState(formState => ({ ...formState, transaction: tx }));
     alert('Transaction created! Ready to submit to the blockchain.');
   }
