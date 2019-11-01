@@ -24,6 +24,13 @@ pub const MODULUS: &str = "13";
 /// Security parameter that represents the size of elements added to the accumulator.
 pub const LAMBDA: u32 = u32::max_value();
 
+/// A witness can either be a membership witness or a non-membership witness.
+#[derive(Clone, Copy)]
+pub enum Witness {
+    MemWit(U2048),
+    NonMemWit((i128, U2048)),
+}
+
 /// Add a single element to an accumulator.
 pub fn add(state: U2048, elem: U2048) -> U2048 {
     return subroutines::mod_exp(state, elem, U2048::from_dec_str(MODULUS).unwrap());

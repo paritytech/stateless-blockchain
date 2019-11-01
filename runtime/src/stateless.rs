@@ -21,7 +21,7 @@ use codec::{Encode, Decode};
 use runtime_io;
 use accumulator::*;
 
-/// At the moment, this particular implementation resembles more closely an NFT model.
+/// At the moment, this particular struct resembles more closely an NFT.
 #[cfg_attr(feature = "std", derive(Debug))]
 #[derive(Default, Clone, Encode, Decode, PartialEq, Eq, Copy)]
 pub struct UTXO {
@@ -29,8 +29,7 @@ pub struct UTXO {
     id: u64,
 }
 
-/// Primitive transaction model with one input and one output. The use of a signature is currently
-/// omitted for simplistic purposes.
+/// Primitive transaction model with one input and one output.
 #[cfg_attr(feature = "std", derive(Debug))]
 #[derive(Default, Clone, Encode, Decode, PartialEq, Eq)]
 pub struct Transaction {
@@ -60,7 +59,7 @@ decl_event!(
 );
 
 decl_module! {
-	/// The module declaration.
+    /// The module declaration.
     pub struct Module<T: Trait> for enum Call where origin: T::Origin {
         // Initialize generic event
         fn deposit_event() = default;

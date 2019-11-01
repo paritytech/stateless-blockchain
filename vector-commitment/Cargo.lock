@@ -1290,6 +1290,7 @@ name = "vector-commitment"
 version = "1.0.0"
 dependencies = [
  "accumulator 1.0.0",
+ "sr-io 2.0.0 (git+https://github.com/paritytech/substrate.git?rev=3ba0f2a2dbd37c31851a0ff1c1c0c47aa940de90)",
 ]
 
 [[package]]

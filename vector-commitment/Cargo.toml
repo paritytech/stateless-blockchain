@@ -7,4 +7,10 @@ version = '1.0.0'
 [dependencies.accumulator]
 path = "../accumulator"
 
+[dependencies.runtime-io]
+default_features = false
+git = 'https://github.com/paritytech/substrate.git'
+package = 'sr-io'
+rev = '3ba0f2a2dbd37c31851a0ff1c1c0c47aa940de90'
+
 [workspace]

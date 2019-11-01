@@ -207,7 +207,7 @@ pub fn root_factor(g: U2048, elems: &[U2048]) -> Vec<U2048> {
 }
 
 /// Short helper function that calculates the product of elements in the vector.
-pub fn prime_product(elems: Vec<U2048>) -> U2048 {
+pub fn prime_product(elems: &[U2048]) -> U2048 {
     let mut result: U2048 = U2048::from(1);
     for &elem in elems.iter() {
         result *= elem;
@@ -296,7 +296,7 @@ mod tests {
     #[test]
     fn test_prime_product() {
         let elems = vec![U2048::from(2), U2048::from(3), U2048::from(4)];
-        assert_eq!(prime_product(elems), U2048::from(24));
+        assert_eq!(prime_product(&elems), U2048::from(24));
     }
 
 

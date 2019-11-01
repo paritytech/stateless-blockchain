@@ -5,7 +5,7 @@ use crate::proofs;
 use rstd::prelude::Vec;
 use super::U2048;
 
-/// Given the product of a set of elements that have been added, and a single element from that
+/// Given an old state, the product of a set of elements that have been added, and a single element from that
 /// set, returns the witness for that element.
 /// NOTE: "old_state" represents the state *before* the elements are added.
 /// This function will likely be used by an online user.
@@ -28,7 +28,7 @@ pub fn verify_mem_wit(state: U2048, witness: U2048, elem: U2048) -> bool {
 /// Anonymous Credentials". Note that "additions" represent the product of the added elements
 /// and "deletions" represents the product of the deleted elements.
 /// NOTE: Does not do any error checking on unwrap.
-pub fn update_mem_wit(elem: U2048, mut witness: U2048, mut new_state: U2048, additions: U2048, deletions: U2048) -> U2048 {
+pub fn update_mem_wit(elem: U2048, mut witness: U2048, new_state: U2048, additions: U2048, deletions: U2048) -> U2048 {
     // Handle added elems
     witness = subroutines::mod_exp(witness, additions, U2048::from_dec_str(super::MODULUS).unwrap());
 
@@ -64,9 +64,9 @@ pub fn create_all_mem_wit(old_state: U2048, new_elems: &[U2048]) -> Vec<U2048> {
 /// Creates a non-membership witness. The current state should equal "old_state"
 /// raised to the "agg_elems" power(represents product of added elements). The first value of the
 /// tuple is an i128 since the Bezout coefficients may be negative.
-/// NOTE: Function assumes that "elem" is contained in "agg_elems"
+/// NOTE: Function assumes that "elem" is not contained in "agg_elems"
 pub fn non_mem_wit_create(mut old_state: U2048, agg_elems: U2048, elem: U2048) -> (i128, U2048) {
-    let (mut a, mut b) = subroutines::bezout(agg_elems, elem).unwrap();
+    let (a, mut b) = subroutines::bezout(agg_elems, elem).unwrap();
     if b < 0 {
         old_state = subroutines::mod_inverse(old_state);
         b = -b;
@@ -77,6 +77,7 @@ pub fn non_mem_wit_create(mut old_state: U2048, agg_elems: U2048, elem: U2048) -
 }
 
 /// Verifies a non-membership witness. "state" represents the current state.
+/// NOTE: Need to double check correctness of this function.
 pub fn verify_non_mem_wit(mut state: U2048, witness: (i128, U2048), elem: U2048) -> bool {
     let (mut a, B) = witness;
 
@@ -90,9 +91,20 @@ pub fn verify_non_mem_wit(mut state: U2048, witness: (i128, U2048), elem: U2048)
     return subroutines::mul_mod(exp_1, exp_2, U2048::from_dec_str(super::MODULUS).unwrap()) == U2048::from(2);
 }
 
+/// OPTIONAL FUNCTION.
+/// Given the current state, the previous state, the product of the added elements, and a subset of
+/// those elements, creates a witness for thoise elements.
+pub fn mem_wit_create_star(cur_state: U2048, old_state: U2048, agg: U2048, new_elems: Vec<U2048>) -> (U2048, U2048) {
+    let product = subroutines::prime_product(&new_elems);
+    let witness = mem_wit_create(old_state, agg, product).unwrap();
+    let proof = proofs::poe(witness, product, cur_state);
+    return (witness, proof);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::batch_add;
 
     #[test]
     fn test_mem_wit_create() {
@@ -141,6 +153,20 @@ mod tests {
         assert_eq!(verify_non_mem_wit(U2048::from(5), (a, B), U2048::from(11)), true);
         assert_eq!(verify_non_mem_wit(U2048::from(6), (a, B), U2048::from(11)), false);
         assert_eq!(verify_non_mem_wit(U2048::from(5), (a, B), U2048::from(5)), false);
+    }
+
+    #[test]
+    fn test_mem_wit_create_star() {
+        let old_state = U2048::from(2);
+        let new_elems = vec![U2048::from(3), U2048::from(5), U2048::from(7), U2048::from(11), U2048::from(17)];
+        let (new_state, agg, _) = batch_add(old_state, &new_elems);
+
+        let subset = vec![U2048::from(5), U2048::from(11), U2048::from(17)];
+        let subset_product = subroutines::prime_product(&subset);
+        let (witness, proof) = mem_wit_create_star(new_state, old_state, agg, subset);
+
+        assert_eq!(witness, U2048::from(5));
+        assert_eq!(proofs::verify_poe(witness, subset_product, new_state, proof), true);
     }
 
 
