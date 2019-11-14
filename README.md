@@ -84,7 +84,7 @@ incoming extrinsics without modifying Substrate itself.
 ##  Miscellaneous
 
 The primary computational bottleneck occurs when a UTXO is hashed to a prime representation. Although this implementation
-uses a deterministic variant of the Miller-Rabin primality test that is "efficient" since we have used a small
+uses a deterministic variant of the Miller-Rabin primality test that is "efficient", since we have used a small
 lambda value for testing, it can still be a limiting factor. Page 24 of https://eprint.iacr.org/2018/1188.pdf presents
 a modification to the inclusion proofs such that the verifier only needs to perform one round of primality checking
 instead of rederiving the hash representation(which involves about log(lambda) rounds). If transactions are taking too
@@ -106,5 +106,17 @@ Here is a non-comprehensive list of potential future steps.
 * Signature aggregation.
 * Implementing vector commitments for an account-based model.
 * Explore accumulator unions and multiset accumulators.
+
+## Reading List
+
+* https://eprint.iacr.org/2018/1188.pdf
+* https://www.zeroknowledge.fm/88
+* https://blog.goodaudience.com/deep-dive-on-rsa-accumulators-230bc84144d9
+* http://diyhpl.us/wiki/transcripts/stanford-blockchain-conference/2019/accumulators/
+* https://scalingbitcoin.org/transcript/tokyo2018/accumulators
+* https://ethresear.ch/t/accumulators-scalability-of-utxo-blockchains-and-data-availability/176
+* https://www.youtube.com/watch?v=tqqsbsAHJzs
+* https://ethresear.ch/t/rsa-accumulators-for-plasma-cash-history-reduction/3739
+* https://crypto.stackexchange.com/questions/66396/cryptographic-accumulators-accumulator-size-vs-max-number-of-set-members
 
 Note: This repository will no longer be maintained by its original owner after November 2019.

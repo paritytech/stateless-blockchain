@@ -61,7 +61,7 @@ pub fn create_all_mem_wit(old_state: U2048, new_elems: &[U2048]) -> Vec<U2048> {
 
 /// Below contains all of the non-membership witness functions required for vector commitments.
 
-/// Creates a non-membership witness. The current state should equal "old_state"
+/// Creates a non-membership witness relative to some previous state. The current state should equal "old_state"
 /// raised to the "agg_elems" power(represents product of added elements). The first value of the
 /// tuple is an i128 since the Bezout coefficients may be negative.
 /// NOTE: Function assumes that "elem" is not contained in "agg_elems"
@@ -72,13 +72,17 @@ pub fn non_mem_wit_create(mut old_state: U2048, agg_elems: U2048, elem: U2048) -
         b = -b;
     }
 
+    runtime_io::print(a as u64);
+    runtime_io::print(b as u64);
+    runtime_io::print(agg_elems.low_u64());
+
     let B = subroutines::mod_exp(old_state, U2048::from(b), U2048::from_dec_str(super::MODULUS).unwrap());
     return (a, B);
 }
 
 /// Verifies a non-membership witness. "state" represents the current state.
 /// NOTE: Need to double check correctness of this function.
-pub fn verify_non_mem_wit(mut state: U2048, witness: (i128, U2048), elem: U2048) -> bool {
+pub fn verify_non_mem_wit(old_state: U2048, mut state: U2048, witness: (i128, U2048), elem: U2048) -> bool {
     let (mut a, B) = witness;
 
     if a < 0 {
@@ -86,10 +90,20 @@ pub fn verify_non_mem_wit(mut state: U2048, witness: (i128, U2048), elem: U2048)
         a = -a;
     }
 
+    runtime_io::print(old_state.low_u64());
+    runtime_io::print(state.low_u64());
+    runtime_io::print(a as u64);
+    runtime_io::print(B.low_u64());
+    runtime_io::print(elem.low_u64());
+
     let exp_1 = subroutines::mod_exp(state, U2048::from(a), U2048::from_dec_str(super::MODULUS).unwrap());
     let exp_2 = subroutines::mod_exp(B, elem, U2048::from_dec_str(super::MODULUS).unwrap());
-    return subroutines::mul_mod(exp_1, exp_2, U2048::from_dec_str(super::MODULUS).unwrap()) == U2048::from(2);
+
+    return subroutines::mul_mod(exp_1, exp_2, U2048::from_dec_str(super::MODULUS).unwrap()) == old_state;
 }
+
+/// UNTESTED
+pub fn update_non_mem_wit() {}
 
 /// OPTIONAL FUNCTION.
 /// Given the current state, the previous state, the product of the added elements, and a subset of
@@ -147,12 +161,14 @@ mod tests {
                    vec![U2048::from(2), U2048::from(8), U2048::from(5), U2048::from(5)]);
     }
 
+    // Begin tests for non-membership witnesses.
+
     #[test]
     fn test_non_mem_wit() {
         let (a, B) = non_mem_wit_create(U2048::from(2), U2048::from(105), U2048::from(11));
-        assert_eq!(verify_non_mem_wit(U2048::from(5), (a, B), U2048::from(11)), true);
-        assert_eq!(verify_non_mem_wit(U2048::from(6), (a, B), U2048::from(11)), false);
-        assert_eq!(verify_non_mem_wit(U2048::from(5), (a, B), U2048::from(5)), false);
+        assert_eq!(verify_non_mem_wit(U2048::from(2), U2048::from(5), (a, B), U2048::from(11)), true);
+        assert_eq!(verify_non_mem_wit(U2048::from(2), U2048::from(6), (a, B), U2048::from(11)), false);
+        assert_eq!(verify_non_mem_wit(U2048::from(2), U2048::from(5), (a, B), U2048::from(5)), false);
     }
 
     #[test]

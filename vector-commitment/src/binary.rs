@@ -3,18 +3,18 @@
 
 use accumulator::*;
 use runtime_io::print;
-use accumulator::witnesses::mem_wit_create;
+use accumulator::witnesses;
 
 /// Commit a vector of bits(represented as bool array) to an accumulator. The second value of
 /// the returned tuple is the product of the accumulated elements.
 /// NOTE: In the stateless blockchain model, after the validator commits the vector to the accumulator,
-/// users should immediately request membership witnesses for their committed bit using the "product" value.
-pub fn commit(accumulator: U2048, m: &[bool]) -> (U2048, U2048) {
-    let elems: Vec<U2048> = m
+/// users should immediately request membership witnesses for their committed bit using the returned "product" value.
+pub fn commit(accumulator: U2048, values: &[bool], indices: &[usize]) -> (U2048, U2048) {
+    let elems: Vec<U2048> = values
         .into_iter()
         .enumerate()
-        .filter(|(_, i)| **i)
-        .map(|(i, _)| subroutines::hash_to_prime(&i.to_le_bytes()))
+        .filter(|(_, val)| **val)
+        .map(|(index, _)| subroutines::hash_to_prime(&indices[index].to_le_bytes()))
         .collect();
     let (state, _, _) = batch_add(accumulator, &elems);
     let product = subroutines::prime_product(&elems);
@@ -22,7 +22,8 @@ pub fn commit(accumulator: U2048, m: &[bool]) -> (U2048, U2048) {
 }
 
 /// Create an opening for a bit commitment. The current state of the accumulator should equal
-/// "old_state" raised to the "agg" power(product of aggregated elements).
+/// "old_state" raised to the "agg" power(product of aggregated elements) where the committed bit
+/// is contained in "agg".
 pub fn open(old_state: U2048, bit: bool, index: usize, agg: U2048) -> Witness {
     let elem = subroutines::hash_to_prime(&index.to_le_bytes());
     if bit {
@@ -33,8 +34,8 @@ pub fn open(old_state: U2048, bit: bool, index: usize, agg: U2048) -> Witness {
     }
 }
 
-/// Verifies a membership/non-membership proof (produced by an opening) for a given bit commitment.
-pub fn verify(accumulator: U2048, bit: bool, index: usize, proof: Witness) -> bool {
+/// Verify a membership/non-membership proof (produced by an opening) for a given bit commitment.
+pub fn verify(old_state: U2048, accumulator: U2048, bit: bool, index: usize, proof: Witness) -> bool {
     let elem = subroutines::hash_to_prime(&index.to_le_bytes());
     if bit {
         match proof {
@@ -49,7 +50,7 @@ pub fn verify(accumulator: U2048, bit: bool, index: usize, proof: Witness) -> bo
     else {
         match proof {
             Witness::NonMemWit(witness) => {
-                return witnesses::verify_non_mem_wit(accumulator, witness, elem);
+                return witnesses::verify_non_mem_wit(old_state,accumulator, witness, elem);
             },
             Witness::MemWit(_) => {
                 return false;
@@ -106,7 +107,7 @@ pub fn batch_open(old_state: U2048, agg: U2048, b: &[bool], i: &[usize]) -> (Wit
 
 /// Verifies a set of membership and non-membership witnesses for a set of bit commitments.
 /// This function has been slightly modified from the original specification. See page 20 of the paper for more info.
-pub fn batch_verify(accumulator: U2048, b: &[bool], i: &[usize], pi_i: Witness, pi_e: Witness) -> bool {
+pub fn batch_verify(old_state: U2048, accumulator: U2048, b: &[bool], i: &[usize], pi_i: Witness, pi_e: Witness) -> bool {
     let (p_ones, p_zeros) = get_bit_elems(b, i);
 
     let mut ver_mem_result = false;
@@ -125,24 +126,25 @@ pub fn batch_verify(accumulator: U2048, b: &[bool], i: &[usize], pi_i: Witness, 
             return false;
         },
         Witness::NonMemWit(non_mem_wit) => {
-            ver_non_mem_result = witnesses::verify_non_mem_wit(accumulator,non_mem_wit, p_zeros);
+            ver_non_mem_result = witnesses::verify_non_mem_wit(old_state,accumulator,non_mem_wit, p_zeros);
         },
     }
+
     return ver_mem_result && ver_non_mem_result;
 }
 
-/// Updates a segment of a vector commitment.
+/// Updates a segment of a vector commitment. Assumes that an honest party performs the update.
 /// Arguments:
 /// - accumulator: The current state of the accumulator.
 /// - old_state: A previous state.
-/// - agg: Product of some aggregated elements s.t. old_state^agg = accumulator
+/// - agg: Product of some aggregated elements where old_state^agg = accumulator
 /// - b: New bit array.
 /// - i: Affected indices.
 pub fn update(accumulator: U2048, old_state: U2048, agg: U2048, b: &[bool], i: &[usize]) -> U2048 {
     let (p_ones, p_zeros) = get_bit_elems(b, i);
 
     // Delete p_zeros elements
-    let mem_wit = mem_wit_create(old_state, agg, p_zeros).unwrap();
+    let mem_wit = witnesses::mem_wit_create(old_state, agg, p_zeros).unwrap();
     let mut new_state = delete(accumulator, p_zeros, mem_wit).unwrap();
 
     // Add p_ones elements
@@ -161,7 +163,7 @@ mod tests {
         // Commit vector
         let accumulator = U2048::from(2);
         let arr: [bool; N] = [true, false, true];
-        let (state, product) = commit(accumulator, &arr);
+        let (state, product) = commit(accumulator, &arr, &[0, 1, 2]);
 
         // Check commit
         let h_0 = subroutines::hash_to_prime(&(0 as usize).to_le_bytes());
@@ -173,13 +175,13 @@ mod tests {
         let open_2 = open(U2048::from(2), true, 2, product);
 
         // Verify
-        assert_eq!(verify(state, false, 1, open_1), true);
-        assert_eq!(verify(state, true, 1, open_1), false);
-        assert_eq!(verify(state, false, 1, open_2), false);
+        assert_eq!(verify(accumulator, state, false, 1, open_1), true);
+        assert_eq!(verify(accumulator, state, true, 1, open_1), false);
+        assert_eq!(verify(accumulator, state, false, 1, open_2), false);
 
-        assert_eq!(verify(state, true, 2, open_2), true);
-        assert_eq!(verify(state, false, 2, open_2), false);
-        assert_eq!(verify(state, true, 2, open_1), false);
+        assert_eq!(verify(accumulator, state, true, 2, open_2), true);
+        assert_eq!(verify(accumulator, state, false, 2, open_2), false);
+        assert_eq!(verify(accumulator, state, true, 2, open_1), false);
     }
 
     #[test]
@@ -200,7 +202,7 @@ mod tests {
     fn test_batch_open_and_verify() {
         let accumulator = U2048::from(2);
         let arr: [bool; 6] = [true, false, true, false, false, true];
-        let (state, product) = commit(accumulator, &arr);
+        let (state, product) = commit(accumulator, &arr, &[0, 1, 2, 3, 4, 5]);
 
         let (i, e) = batch_open(accumulator, product, &[true, false, false, true], &[0, 3, 4, 5]);
 
@@ -231,14 +233,14 @@ mod tests {
 //        }
 //        assert_eq!(mem_result && non_mem_result, true);
 
-        assert_eq!(batch_verify(state, &[true, false, false, true], &[0, 3, 4, 5], i, e), true);
+        assert_eq!(batch_verify(accumulator, state, &[true, false, false, true], &[0, 3, 4, 5], i, e), true);
     }
 
     #[test]
     fn test_update() {
         let accumulator = U2048::from(2);
         let arr: [bool; 6] = [true, false, true, false, false, true];
-        let (state, product) = commit(accumulator, &arr);
+        let (state, product) = commit(accumulator, &arr, &[0, 1, 2, 3, 4, 5]);
 
         let h_0 = subroutines::hash_to_prime(&(0 as usize).to_le_bytes());
         let h_3 = subroutines::hash_to_prime(&(3 as usize).to_le_bytes());

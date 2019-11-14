@@ -36,7 +36,7 @@ pub struct Transaction {
     input: UTXO,
     output: UTXO,
     witness: Vec<u8>,
-    // Would hypothetically include a signature here.
+    // Would in practice include a signature here.
 }
 
 pub trait Trait: system::Trait {

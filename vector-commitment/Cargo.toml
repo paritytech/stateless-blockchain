@@ -13,4 +13,7 @@ git = 'https://github.com/paritytech/substrate.git'
 package = 'sr-io'
 rev = '3ba0f2a2dbd37c31851a0ff1c1c0c47aa940de90'
 
+[dependencies]
+bit-vec = { version = "0.6", default-features = false }
+
 [workspace]
