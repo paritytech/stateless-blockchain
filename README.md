@@ -16,6 +16,7 @@ In the root directory:
 
 In the accumulator-client directory (you must use nightly Rust):
 
+* Install `wasm-pack` if you don't already have it `cargo install wasm-pack`
 * Run `wasm-pack build` to compile the crate to WASM.
 * Inside "pkg", run `npm link`
 
