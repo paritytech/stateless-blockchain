@@ -16,8 +16,7 @@ pub fn commit(accumulator: U2048, values: &[bool], indices: &[usize]) -> (U2048,
         .filter(|(_, val)| **val)
         .map(|(index, _)| subroutines::hash_to_prime(&indices[index].to_le_bytes()))
         .collect();
-    let (state, _, _) = batch_add(accumulator, &elems);
-    let product = subroutines::prime_product(&elems);
+    let (state, product, _) = batch_add(accumulator, &elems);
     return (state, product);
 }
 
@@ -126,8 +125,7 @@ pub fn batch_verify(old_state: U2048, accumulator: U2048, b: &[bool], i: &[usize
             return false;
         },
         Witness::NonMemWit(non_mem_wit) => {
-            ver_non_mem_result = witnesses::verify_non_mem_wit(old_state,accumulator,non_mem_wit, p_zeros);
-        },
+            ver_non_mem_result = witnesses::verify_non_mem_wit(old_state,accumulator,non_mem_wit, p_zeros); },
     }
 
     return ver_mem_result && ver_non_mem_result;
@@ -211,27 +209,27 @@ mod tests {
         let h_4 = subroutines::hash_to_prime(&(4 as usize).to_le_bytes());
         let h_5 = subroutines::hash_to_prime(&(5 as usize).to_le_bytes());
 
-//        // Manual check of openings
-//        let ones_product = subroutines::prime_product(&vec![h_0, h_5]);
-//        let zeros_product = subroutines::prime_product(&vec![h_3, h_4]);
-//
-//        let mut mem_result = false;
-//        let mut non_mem_result = false;
-//
-//        match i {
-//            Witness::MemWit(mem_wit) => {
-//                mem_result = witnesses::verify_mem_wit(state, mem_wit, ones_product);
-//            },
-//            Witness::NonMemWit(_) => { },
-//        }
-//
-//        match e {
-//            Witness::MemWit(_) => { },
-//            Witness::NonMemWit(non_mem_wit) => {
-//                non_mem_result = witnesses::verify_non_mem_wit(state, non_mem_wit, zeros_product);
-//            },
-//        }
-//        assert_eq!(mem_result && non_mem_result, true);
+        // Manual check of openings
+        let ones_product = subroutines::prime_product(&vec![h_0, h_5]);
+        let zeros_product = subroutines::prime_product(&vec![h_3, h_4]);
+
+        let mut mem_result = false;
+        let mut non_mem_result = false;
+
+        match i {
+            Witness::MemWit(mem_wit) => {
+                mem_result = witnesses::verify_mem_wit(state, mem_wit, ones_product);
+            },
+            Witness::NonMemWit(_) => { },
+        }
+
+        match e {
+            Witness::MemWit(_) => { },
+            Witness::NonMemWit(non_mem_wit) => {
+                non_mem_result = witnesses::verify_non_mem_wit(accumulator, state, non_mem_wit, zeros_product);
+            },
+        }
+        assert_eq!(mem_result && non_mem_result, true);
 
         assert_eq!(batch_verify(accumulator, state, &[true, false, false, true], &[0, 3, 4, 5], i, e), true);
     }

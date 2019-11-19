@@ -7,30 +7,33 @@ use crate::binary;
 
 type ValueType = u8;
 
+/// Commit to a set of keys and corresponding values.
 pub fn commit(accumulator: U2048, keys: &[usize], values: &[ValueType]) -> (U2048, U2048) {
     let (binary_vec, indices) = convert_key_value(keys, values);
     return binary::commit(accumulator, &binary_vec, &indices);
 }
 
-/// UNTESTED
-/// This function would be immediately called by a user following a relevant state commitment.
+/// Open a commitment for a value at a specific key. This function would be immediately called by a
+/// user following a relevant state commitment.
 pub fn open_at_key(old_state: U2048, product: U2048, key: usize, value: ValueType) -> (Witness, Witness) {
     let (binary_vec, indices) = convert_key_value(&[key], &[value]);
     return binary::batch_open(old_state, product, &binary_vec, &indices);
 }
 
-/// UNTESTED
+/// Verify a commitment for a value at a specific key.
 pub fn verify_at_key(old_state: U2048, accumulator: U2048, key: usize, value: ValueType, pi_i: Witness, pi_e: Witness) -> bool {
     let (binary_vec, indices) = convert_key_value(&[key], &[value]);
     return binary::batch_verify(old_state, accumulator, &binary_vec, &indices, pi_i, pi_e);
 }
 
-/// UNTESTED
+/// Update the values for a set of keys. Assumes key-value pairs are valid.
 pub fn update(accumulator: U2048, old_state: U2048, agg: U2048, keys: &[usize], values: &[ValueType]) -> U2048 {
     let (binary_vec, indices) = convert_key_value(keys, values);
     return binary::update(accumulator, old_state, agg, &binary_vec, &indices);
 }
 
+/// Converts key-value pairs into a binary representation of the values along with corresponding
+/// indices.
 pub fn convert_key_value(keys: &[usize], values: &[ValueType]) -> (Vec<bool>, Vec<usize>) {
     let mut binary_vec: Vec<bool> = [].to_vec();
     let mut indices: Vec<usize> = [].to_vec();
@@ -44,6 +47,7 @@ pub fn convert_key_value(keys: &[usize], values: &[ValueType]) -> (Vec<bool>, Ve
     return (binary_vec, indices);
 }
 
+/// Converts an element to a binary representation.
 pub fn to_binary(elem: ValueType) -> Vec<bool> {
     let byte_vec = elem.to_le_bytes().to_vec();
     let bv = BitVec::from_bytes(&byte_vec);
@@ -54,6 +58,7 @@ pub fn to_binary(elem: ValueType) -> Vec<bool> {
 mod tests {
     use super::*;
     use crate::N;
+    use crate::binary::batch_open;
 
     #[test]
     fn test_to_binary() {
@@ -95,12 +100,12 @@ mod tests {
         let keys = vec![0, 1];
         let values = vec![4, 7];
         let (new_accumulator, product) = commit(accumulator, &keys, &values);
-        runtime_io::print(product.low_u64());
 
         let (pi_i, pi_e) = open_at_key(accumulator, product, 1, 7);
-        assert_eq!(verify_at_key(accumulator, new_accumulator, 1, 7, pi_i, pi_e), true);
 
+        assert_eq!(verify_at_key(accumulator, new_accumulator, 1, 7, pi_i, pi_e), true);
         assert_eq!(verify_at_key(accumulator, new_accumulator, 0, 7, pi_i, pi_e), false);
         assert_eq!(verify_at_key(accumulator, new_accumulator, 1, 4, pi_i, pi_e), false);
     }
+
 }

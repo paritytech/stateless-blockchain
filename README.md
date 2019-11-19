@@ -45,7 +45,7 @@ https://eprint.iacr.org/2018/1188.pdf.
 ### Setup
 The accumulator can be instantiated with a group of unknown order such as an RSA group. Any RSA number up to RSA-2048
 is supported(see the "accumulator" crate root). Accumulators can be instantiated with no trusted setup using class groups
-but are mostly a research topic at the moment.
+but remain mostly a research topic at the moment.
 
 ### Mechanics
 The workflow of a stateless blockchain is as follows:
@@ -66,14 +66,14 @@ or updating membership witnesses.
 The front-end for this project is stored in the "client" directory and implements a simple React page based on the
 Substrate Front-End template.
 
-Lastly, "accumulator-client" is a wrapper crate for "accumulator" that uses wasm-bindgen to export several accumulator
+"accumulator-client" is a wrapper crate for "accumulator" that uses wasm-bindgen to export several accumulator
 functions to WASM. This is necessary so that the front-end can interact with the accumulator.
 
 ## Limitations
 
 Since this is an experimental project, there exists numerous limitations.
 
-* Instead of integrating a Proof-of-Work module, this runtime allows users to trivially mint new coins.
+* Instead of using a Proof-of-Work module, this runtime allows users to trivially mint new coins.
 * The "UTXOs" that are created more closely resemble non-fungible tokens and are not explicitly value bearing(only contain
 identifier and owner).
 * Users can only submit one transaction per block and each transaction is limited to one input and one output.
@@ -95,6 +95,14 @@ With regard to semantics, it is important to note that this implementation is no
 the runtime still utilizes the underlying storage trie of Substrate as well as multiple SRML components. However, the
 storage requirements are still fairly minimal.
 
+## Vector Commitments
+
+The directory titled "vector-commitment" is a crate that implements both binary and vector commitments using
+the RSA accumulator. Vector commitments allow for the efficient commitment of a binary vector by mapping the indices of elements
+that are 1 to primes and then batch adding them to the accumulator. We can generalize this scheme further to accumulate a
+key-value store by using a large sparse vector and taking advantage of our batching functions. Using vector commitments,
+we can build an account-based stateless blockchain.
+
 ## Future Work
 
 Here is a non-comprehensive list of potential future steps.
@@ -105,8 +113,8 @@ Here is a non-comprehensive list of potential future steps.
 * Creating a data service provider.
 * Investigating class groups.
 * Signature aggregation.
-* Implementing vector commitments for an account-based model.
 * Explore accumulator unions and multiset accumulators.
+* Creating an account-based stateless blockchain runtime.
 
 ## Reading List
 

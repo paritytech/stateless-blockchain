@@ -4,6 +4,7 @@ use core::convert::TryFrom;
 use runtime_io::blake2_256;
 use rstd::prelude::Vec;
 use super::U2048;
+use crate::BezoutPair;
 
 /// Implements fast modular exponentiation. Algorithm inspired by https://github.com/pwoolcoc/mod_exp-rs/blob/master/src/lib.rs
 /// NOTE: Overflow error occurs when size of result exceeds U2048.
@@ -57,21 +58,19 @@ pub fn shamir_trick(mut xth_root: U2048, mut yth_root: U2048, x: U2048, y: U2048
         },
         Some(coefficients) => {
             // Receive coefficient as signed integers.
-            let (mut a, mut b) = coefficients;
+            let pair = coefficients;
 
             // Calculate relevant modular inverses to allow for exponentiation later on.
-            if b < 0 {
+            if pair.sign_b {
                 xth_root = mod_inverse(xth_root);
-                b = -b;
             }
 
-            if a < 0 {
+            if pair.sign_a {
                 yth_root = mod_inverse(yth_root);
-                a = -a
             }
 
-            let combined_root: U2048 = (mod_exp(xth_root, U2048::from(b), U2048::from_dec_str(super::MODULUS).unwrap())
-                * mod_exp(yth_root, U2048::from(a), U2048::from_dec_str(super::MODULUS).unwrap())) % U2048::from_dec_str(super::MODULUS).unwrap();
+            let combined_root: U2048 = (mod_exp(xth_root, U2048::from(pair.coefficient_b), U2048::from_dec_str(super::MODULUS).unwrap())
+                * mod_exp(yth_root, U2048::from(pair.coefficient_a), U2048::from_dec_str(super::MODULUS).unwrap())) % U2048::from_dec_str(super::MODULUS).unwrap();
             return Some(combined_root);
         },
     }
@@ -80,28 +79,27 @@ pub fn shamir_trick(mut xth_root: U2048, mut yth_root: U2048, x: U2048, y: U2048
 /// Computes the modular multiplicative inverse.
 /// NOTE: Does not check if gcd != 1(none exists if so).
 pub fn mod_inverse(elem: U2048) -> U2048 {
-    let (_, x, _) = extended_gcd(elem, U2048::from_dec_str(super::MODULUS).unwrap());
+    let (_, pair) = extended_gcd(elem, U2048::from_dec_str(super::MODULUS).unwrap());
 
     // Accommodate for negative x coefficient
-    if x < 0 {
+    if pair.sign_a {
         // Since we're assuming that the U2048::from(super::MODULUS) will always be larger than than coefficient in
         // absolute value, we simply subtract x from the U2048::from(super::MODULUS) to get a positive value mod N.
-        let pos_x = U2048::from_dec_str(super::MODULUS).unwrap() - U2048::from(x*-1);
-        return pos_x % U2048::from_dec_str(super::MODULUS).unwrap();
+        let pos_a = U2048::from_dec_str(super::MODULUS).unwrap() - pair.coefficient_a;
+        return pos_a % U2048::from_dec_str(super::MODULUS).unwrap();
     }
-    return U2048::from(x) % U2048::from_dec_str(super::MODULUS).unwrap();
+    return U2048::from(pair.coefficient_a) % U2048::from_dec_str(super::MODULUS).unwrap();
 }
 
-/// Returns Bezout coefficients as *signed* integers (since they may be negative).
-/// Acts as a wrapper for extended_gcd.
-pub fn bezout(a: U2048, b: U2048) -> Option<(i128, i128)> {
-    let (gcd, x, y) = extended_gcd(a, b);
+/// Returns Bezout coefficients. Acts as a wrapper for extended_gcd.
+pub fn bezout(a: U2048, b: U2048) -> Option<BezoutPair> {
+    let (gcd, pair) = extended_gcd(a, b);
     // Check if a and b are coprime
     if gcd != U2048::from(1) {
         return None;
     }
     else {
-        return Some((x, y));
+        return Some(pair);
     }
 }
 
@@ -109,26 +107,65 @@ pub fn bezout(a: U2048, b: U2048) -> Option<(i128, i128)> {
 /// NOTE: I assume that the absolute value of the Bezout coefficients are at most 64 bits(hence 128 bit
 /// signed integers). Otherwise, the function panics during the unwrap.
 /// Reference: https://math.stackexchange.com/questions/670405/does-the-extended-euclidean-algorithm-always-return-the-smallest-coefficients-of
-pub fn extended_gcd(a: U2048, b: U2048) -> (U2048, i128, i128) {
-    let (mut s, mut old_s): (i128, i128) = (0, 1);
-    let (mut t, mut old_t): (i128, i128) = (1, 0);
+///
+/// IMPORTANT NOTE: Instead of representing the coefficients as signed integers, I have represented
+/// them as (|a|, sign of a) and (|b|, sign of b). This is because the current project lacks
+/// support for signed BigInts.
+pub fn extended_gcd(a: U2048, b: U2048) -> (U2048, BezoutPair) {
+    let (mut s, mut old_s): (U2048, U2048) = (U2048::from(0), U2048::from(1));
+    let (mut t, mut old_t): (U2048, U2048) = (U2048::from(1), U2048::from(0));
     let (mut r, mut old_r): (U2048, U2048) = (b, a);
 
+    let (mut prev_sign_s, mut prev_sign_t): (bool, bool) = (false, false);
+    let (mut sign_s, mut sign_t): (bool, bool) = (false, false);
+
     while r != U2048::from(0) {
-        let quotient = old_r / r;
-        let new_r = old_r - quotient * r;
+        let quotient = old_r/r;
+        let new_r = old_r - U2048::from(quotient) * r;
         old_r = r;
         r = new_r;
 
-        let new_s = old_s - i128::try_from(quotient).unwrap() * s;
+        // Hacky workaround to track the coefficient "a" as (|a|, sign of a)
+        let mut new_s = quotient * s;
+        if prev_sign_s == sign_s && new_s > old_s {
+            new_s = new_s - old_s;
+            if !sign_s { sign_s = true; }
+            else { sign_s = false; }
+        }
+        else if prev_sign_s != sign_s {
+            new_s = old_s + new_s;
+            prev_sign_s = sign_s;
+            sign_s = !sign_s;
+        }
+        else { new_s = old_s - new_s; }
         old_s = s;
         s = new_s;
 
-        let new_t = old_t - i128::try_from(quotient).unwrap() * t;
+        // Hacky workaround to track the coefficient "b" as (|b|, sign of b)
+        let mut new_t = quotient * t;
+        if prev_sign_t == sign_t && new_t > old_t {
+            new_t = new_t - old_t;
+            if !sign_t { sign_t = true; }
+            else { sign_t = false; }
+        }
+        else if prev_sign_t != sign_t {
+            new_t = old_t + new_t;
+            prev_sign_t = sign_t;
+            sign_t = !sign_t;
+        }
+        else { new_t = old_t - new_t; }
         old_t = t;
         t = new_t;
     }
-    return (old_r, old_s, old_t);
+
+    let pair = BezoutPair {
+        coefficient_a: old_s,
+        coefficient_b: old_t,
+        sign_a: prev_sign_s,
+        sign_b: prev_sign_t,
+    };
+
+    return (old_r, pair);
 }
 
 /// Continuously hashes the input until the result is prime. Assumes input values are transcoded in
@@ -237,14 +274,17 @@ mod tests {
 
     #[test]
     fn test_extended_gcd() {
-        assert_eq!(extended_gcd(U2048::from(180), U2048::from(150)), (U2048::from(30), 1, -1));
-        assert_eq!(extended_gcd(U2048::from(13), U2048::from(17)), (U2048::from(1), 4, -3));
+        assert_eq!(extended_gcd(U2048::from(180), U2048::from(150)), (U2048::from(30),
+                   BezoutPair {coefficient_a: U2048::from(1), coefficient_b: U2048::from(1), sign_a: false, sign_b: true}));
+        assert_eq!(extended_gcd(U2048::from(13), U2048::from(17)), (U2048::from(1),
+                   BezoutPair {coefficient_a: U2048::from(4), coefficient_b: U2048::from(3), sign_a: false, sign_b: true}));
     }
 
     #[test]
     fn test_bezout() {
         assert_eq!(bezout(U2048::from(4), U2048::from(10)), None);
-        assert_eq!(bezout(U2048::from(3434), U2048::from(2423)), Some((-997, 1413)));
+        assert_eq!(bezout(U2048::from(3434), U2048::from(2423)),
+                   Some (BezoutPair {coefficient_a: U2048::from(997), coefficient_b: U2048::from(1413), sign_a: true, sign_b: false}));
     }
 
     #[test]

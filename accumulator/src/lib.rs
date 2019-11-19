@@ -17,8 +17,8 @@ construct_uint! {
 	pub struct U2048(32);
 }
 
-/// Defines the RSA group. All tests work for MODULUS = 13
-/// Example modulus -> RSA 100: "1522605027922533360535618378132637429718068114961380688657908494580122963258952897654000350692006139"
+/// Defines the RSA group. Arbitrary set at MODULUS = 13 for testing.
+/// Example (insecure) modulus -> RSA 100: "1522605027922533360535618378132637429718068114961380688657908494580122963258952897654000350692006139"
 pub const MODULUS: &str = "13";
 
 /// Security parameter that represents the size of elements added to the accumulator.
@@ -28,7 +28,17 @@ pub const LAMBDA: u32 = u32::max_value();
 #[derive(Clone, Copy)]
 pub enum Witness {
     MemWit(U2048),
-    NonMemWit((i128, U2048)),
+    NonMemWit((U2048, bool, U2048)),
+}
+
+/// A Bezout coefficient pair. This is a temporary workaround due to the lack of support for
+/// signed BigInts(coefficients can be negative).
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub struct BezoutPair {
+    coefficient_a: U2048,
+    coefficient_b: U2048,
+    sign_a: bool,
+    sign_b: bool,
 }
 
 /// Add a single element to an accumulator.
