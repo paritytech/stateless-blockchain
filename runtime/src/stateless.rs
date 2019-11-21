@@ -11,14 +11,12 @@
 /// made in this runtime are impractical from both a security and usability standpoint. Additionally,
 /// the following code has not been checked for correctness nor has been optimized for efficiency.
 
-use support::{decl_module, decl_storage, decl_event, ensure, StorageValue, dispatch::Result, traits::Get, print};
+use support::{decl_module, decl_storage, decl_event, ensure, StorageValue, dispatch::Result, traits::Get};
 use system::ensure_signed;
 use primitive_types::H256;
 use rstd::prelude::Vec;
 use rstd::vec;
-use sr_primitives::{ApplyResult, ApplyOutcome};
 use codec::{Encode, Decode};
-use runtime_io;
 use accumulator::*;
 
 /// At the moment, this particular struct resembles more closely an NFT.
@@ -79,11 +77,11 @@ decl_module! {
             let witness = U2048::from_little_endian(&transaction.witness);
             ensure!(witnesses::verify_mem_wit(State::get(), witness, spent_elem), "Witness is invalid");
 
-            let mut new_elem = subroutines::hash_to_prime(&transaction.output.encode());
+            let new_elem = subroutines::hash_to_prime(&transaction.output.encode());
 
             // Update storage items.
             SpentCoins::append(&vec![(spent_elem, witness)]);
-            NewCoins::append(&vec![new_elem]);
+
             Ok(())
         }
 
@@ -125,7 +123,7 @@ mod tests {
 
     use runtime_io::with_externalities;
     use primitives::{H256, Blake2Hasher};
-    use support::{impl_outer_origin, assert_ok, parameter_types};
+    use support::{impl_outer_origin, parameter_types};
     use sr_primitives::{traits::{BlakeTwo256, IdentityLookup, OnFinalize}, testing::Header};
     use sr_primitives::weights::Weight;
     use sr_primitives::Perbill;
@@ -144,7 +142,6 @@ mod tests {
         pub const MaximumBlockWeight: Weight = 1024;
         pub const MaximumBlockLength: u32 = 2 * 1024;
         pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
-        pub const RsaModulus: U2048 = U2048::from(13);
     }
 
     impl system::Trait for Test {

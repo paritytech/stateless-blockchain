@@ -2,8 +2,8 @@
 /// Functions have been slightly modified from original paper specification.
 
 use accumulator::*;
-use runtime_io::print;
 use accumulator::witnesses;
+use rstd::prelude::Vec;
 
 /// Commit a vector of bits(represented as bool array) to an accumulator. The second value of
 /// the returned tuple is the product of the accumulated elements.
@@ -109,7 +109,7 @@ pub fn batch_open(old_state: U2048, agg: U2048, b: &[bool], i: &[usize]) -> (Wit
 pub fn batch_verify(old_state: U2048, accumulator: U2048, b: &[bool], i: &[usize], pi_i: Witness, pi_e: Witness) -> bool {
     let (p_ones, p_zeros) = get_bit_elems(b, i);
 
-    let mut ver_mem_result = false;
+    let ver_mem_result;
     match pi_i {
         Witness::MemWit(mem_wit) => {
             ver_mem_result = witnesses::verify_mem_wit(accumulator, mem_wit, p_ones);
@@ -119,7 +119,7 @@ pub fn batch_verify(old_state: U2048, accumulator: U2048, b: &[bool], i: &[usize
         },
     }
 
-    let mut ver_non_mem_result = false;
+    let ver_non_mem_result;
     match pi_e {
         Witness::MemWit(_) => {
             return false;
@@ -135,7 +135,8 @@ pub fn batch_verify(old_state: U2048, accumulator: U2048, b: &[bool], i: &[usize
 /// Arguments:
 /// - accumulator: The current state of the accumulator.
 /// - old_state: A previous state.
-/// - agg: Product of some aggregated elements where old_state^agg = accumulator
+/// - agg: Product of some aggregated elements where old_state^agg = accumulator. The aggregated
+///        bits should be contained in this value.
 /// - b: New bit array.
 /// - i: Affected indices.
 pub fn update(accumulator: U2048, old_state: U2048, agg: U2048, b: &[bool], i: &[usize]) -> U2048 {
@@ -154,13 +155,12 @@ pub fn update(accumulator: U2048, old_state: U2048, agg: U2048, b: &[bool], i: &
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::N;
 
     #[test]
     fn test_open_and_verify() {
         // Commit vector
         let accumulator = U2048::from(2);
-        let arr: [bool; N] = [true, false, true];
+        let arr: [bool; 3] = [true, false, true];
         let (state, product) = commit(accumulator, &arr, &[0, 1, 2]);
 
         // Check commit
@@ -184,7 +184,7 @@ mod tests {
 
     #[test]
     fn test_get_bit_elems() {
-        let arr: [bool; N] = [false, false, true];
+        let arr: [bool; 3] = [false, false, true];
         let indices = [0, 1, 5];
 
         let h_0 = subroutines::hash_to_prime(&(0 as usize).to_le_bytes());

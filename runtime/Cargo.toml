@@ -8,6 +8,10 @@ version = '2.0.0'
 path = "../accumulator"
 default-features = false
 
+[dependencies.vector-commitment]
+path = "../vector-commitment"
+default_features = false
+
 [dependencies.babe]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
@@ -162,4 +166,5 @@ std = [
     'safe-mix/std',
     'offchain-primitives/std',
     'substrate-session/std',
+    'vector-commitment/std'
 ]

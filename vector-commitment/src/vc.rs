@@ -1,7 +1,8 @@
-/// Vector Commitments for Integer Key Value Store
+/// Vector Commitments for Arbitrary Integer Values
 /// Acts as a wrapper for binary vector commitments.
 
 use accumulator::*;
+use rstd::prelude::Vec;
 use bit_vec::BitVec;
 use crate::binary;
 
@@ -57,8 +58,6 @@ pub fn to_binary(elem: ValueType) -> Vec<bool> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::N;
-    use crate::binary::batch_open;
 
     #[test]
     fn test_to_binary() {
@@ -73,7 +72,7 @@ mod tests {
         let keys = [0, 1];
         let values = vec![4, 7];
 
-        let (new_accumulator, product) = commit(accumulator, &keys, &values);
+        let (new_accumulator, _) = commit(accumulator, &keys, &values);
 
         // Manual check
         let check_product = subroutines::hash_to_prime(&(5 as usize).to_le_bytes())

@@ -97,11 +97,13 @@ storage requirements are still fairly minimal.
 
 ## Vector Commitments
 
-The directory titled "vector-commitment" is a crate that implements both binary and vector commitments using
-the RSA accumulator. Vector commitments allow for the efficient commitment of a binary vector by mapping the indices of elements
-that are 1 to primes and then batch adding them to the accumulator. We can generalize this scheme further to accumulate a
-key-value store by using a large sparse vector and taking advantage of our batching functions. Using vector commitments,
-we can build an account-based stateless blockchain.
+The directory titled "vector-commitment" is a crate that implements both binary and general vector commitments using
+the RSA accumulator. A vector commitment is a primitive that allows for the commitment of an ordered list of elements
+where elements can only be opened at their corresponding indices(position binding). Particularly, one can use a vector
+commitment to commit to a binary vector by mapping the indices of elements that are 1 to primes and then batch adding
+them to an accumulator. A subset of those indices can be opened with constant sized openings by utilizing the batching
+functionality from the accumulator. This scheme can be further generalized to accumulate a key-value store using a large
+sparse vector and finally used to build an account-based stateless blockchain.
 
 ## Future Work
 

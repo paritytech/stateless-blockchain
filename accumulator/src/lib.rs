@@ -25,10 +25,17 @@ pub const MODULUS: &str = "13";
 pub const LAMBDA: u32 = u32::max_value();
 
 /// A witness can either be a membership witness or a non-membership witness.
-#[derive(Clone, Copy)]
+#[derive(Encode, Decode, Clone, Copy, Eq, PartialEq, Debug)]
 pub enum Witness {
     MemWit(U2048),
-    NonMemWit((U2048, bool, U2048)),
+    NonMemWit((U2048,bool, U2048)),
+}
+
+// Cannot derive the Default trait for Enums so this is the only option
+impl Default for Witness {
+    fn default() -> Self {
+        Witness::MemWit(U2048::from(0))
+    }
 }
 
 /// A Bezout coefficient pair. This is a temporary workaround due to the lack of support for
@@ -37,7 +44,7 @@ pub enum Witness {
 pub struct BezoutPair {
     coefficient_a: U2048,
     coefficient_b: U2048,
-    sign_a: bool,
+    sign_a: bool, // True indicates negative and false indicates positive
     sign_b: bool,
 }
 

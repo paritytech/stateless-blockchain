@@ -11,10 +11,10 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 use rstd::prelude::*;
 use primitives::{OpaqueMetadata, crypto::key_types};
 use sr_primitives::{
-ApplyResult, ApplyOutcome, transaction_validity::TransactionValidity, generic, create_runtime_str,
-impl_opaque_keys, AnySignature
+    ApplyResult, transaction_validity::TransactionValidity, generic, create_runtime_str,
+    impl_opaque_keys, AnySignature
 };
-use sr_primitives::traits::{NumberFor, BlakeTwo256, Block as BlockT, DigestFor, StaticLookup, Verify, ConvertInto, OnFinalize};
+use sr_primitives::traits::{NumberFor, BlakeTwo256, Block as BlockT, DigestFor, StaticLookup, Verify, ConvertInto};
 use sr_primitives::weights::Weight;
 use babe::{AuthorityId as BabeId};
 use grandpa::{AuthorityId as GrandpaId, AuthorityWeight as GrandpaWeight};
@@ -148,37 +148,37 @@ parameter_types! {
 }
 
 impl system::Trait for Runtime {
-/// The identifier used to distinguish between accounts.
-type AccountId = AccountId;
-/// The aggregated dispatch type that is available for extrinsics.
-type Call = Call;
-/// The lookup mechanism to get account ID from whatever is passed in dispatchers.
-type Lookup = Indices;
-/// The index type for storing how many extrinsics an account has signed.
-type Index = Index;
-/// The index type for blocks.
-type BlockNumber = BlockNumber;
-/// The type for hashing blocks and tries.
-type Hash = Hash;
-/// The hashing algorithm used.
-type Hashing = BlakeTwo256;
-/// The header type.
-type Header = generic::Header<BlockNumber, BlakeTwo256>;
-/// The ubiquitous event type.
-type Event = Event;
-/// Update weight (to fee) multiplier per-block.
-type WeightMultiplierUpdate = ();
-/// The ubiquitous origin type.
-type Origin = Origin;
-/// Maximum number of block number to block hash mappings to keep (oldest pruned first).
-type BlockHashCount = BlockHashCount;
-/// Maximum weight of each block. With a default weight system of 1byte == 1weight, 4mb is ok.
-type MaximumBlockWeight = MaximumBlockWeight;
-/// Maximum size of all encoded transactions (in bytes) that are allowed in one block.
-type MaximumBlockLength = MaximumBlockLength;
-/// Portion of the block weight that is available to all normal transactions.
-type AvailableBlockRatio = AvailableBlockRatio;
-type Version = Version;
+    /// The identifier used to distinguish between accounts.
+    type AccountId = AccountId;
+    /// The aggregated dispatch type that is available for extrinsics.
+    type Call = Call;
+    /// The lookup mechanism to get account ID from whatever is passed in dispatchers.
+    type Lookup = Indices;
+    /// The index type for storing how many extrinsics an account has signed.
+    type Index = Index;
+    /// The index type for blocks.
+    type BlockNumber = BlockNumber;
+    /// The type for hashing blocks and tries.
+    type Hash = Hash;
+    /// The hashing algorithm used.
+    type Hashing = BlakeTwo256;
+    /// The header type.
+    type Header = generic::Header<BlockNumber, BlakeTwo256>;
+    /// The ubiquitous event type.
+    type Event = Event;
+    /// Update weight (to fee) multiplier per-block.
+    type WeightMultiplierUpdate = ();
+    /// The ubiquitous origin type.
+    type Origin = Origin;
+    /// Maximum number of block number to block hash mappings to keep (oldest pruned first).
+    type BlockHashCount = BlockHashCount;
+    /// Maximum weight of each block. With a default weight system of 1byte == 1weight, 4mb is ok.
+    type MaximumBlockWeight = MaximumBlockWeight;
+    /// Maximum size of all encoded transactions (in bytes) that are allowed in one block.
+    type MaximumBlockLength = MaximumBlockLength;
+    /// Portion of the block weight that is available to all normal transactions.
+    type AvailableBlockRatio = AvailableBlockRatio;
+    type Version = Version;
 }
 
 parameter_types! {
@@ -252,11 +252,18 @@ impl sudo::Trait for Runtime {
     type Proposal = Call;
 }
 
-parameter_types! {}
+parameter_types! {
+    pub const KeySpace: u8 = 255;
+}
 
 /// Used for the module template in `./stateless.rs`
 impl stateless::Trait for Runtime {
     type Event = Event;
+}
+
+impl vector_commitment::Trait for Runtime {
+    type Event = Event;
+    type KeySpace = KeySpace;
 }
 
 construct_runtime!(
@@ -273,6 +280,8 @@ pub enum Runtime where
     Balances: balances,
     Sudo: sudo,
     Stateless: stateless::{Module, Call, Storage, Event},
+    StatelessAccounts: vector_commitment::{Module, Call, Storage, Event<T>},
+
 }
 );
 

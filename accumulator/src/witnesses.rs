@@ -60,6 +60,9 @@ pub fn create_all_mem_wit(old_state: U2048, new_elems: &[U2048]) -> Vec<U2048> {
 }
 
 /// Below contains all of the non-membership witness functions required for vector commitments.
+/// It is important to note that these functions allow one to specify a reference generator(typically
+/// as "old_state") for the non-membership proof since the accumulated set may be too large to be
+/// inputted.
 
 /// Creates a non-membership witness relative to some previous state. The current state should equal "old_state"
 /// raised to the "agg_elems" power(represents product of added elements). The second value of the
@@ -90,7 +93,6 @@ pub fn verify_non_mem_wit(old_state: U2048, mut state: U2048, witness: (U2048, b
     return subroutines::mul_mod(exp_1, exp_2, U2048::from_dec_str(super::MODULUS).unwrap()) == old_state;
 }
 
-/// NEED TO IMPLEMENT AND TEST
 pub fn update_non_mem_wit() {}
 
 /// OPTIONAL FUNCTION.
@@ -137,7 +139,7 @@ mod tests {
         let additions = U2048::from(77);
 
         let elem = U2048::from(12131);
-        let mut witness = U2048::from(8);
+        let witness = U2048::from(8);
         let new_state = U2048::from(11);
 
         assert_eq!(update_mem_wit(elem, witness, new_state, additions, deletions), U2048::from(6));

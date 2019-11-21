@@ -1,13 +1,12 @@
 /// Integer Subroutines for Accumulator Functions.
 
-use core::convert::TryFrom;
 use runtime_io::blake2_256;
 use rstd::prelude::Vec;
 use super::U2048;
 use crate::BezoutPair;
 
 /// Implements fast modular exponentiation. Algorithm inspired by https://github.com/pwoolcoc/mod_exp-rs/blob/master/src/lib.rs
-/// NOTE: Overflow error occurs when size of result exceeds U2048.
+/// NOTE: Possible overflow error occurs when size of result exceeds U2048.
 pub fn mod_exp(mut base: U2048, mut exp: U2048, modulus: U2048) -> U2048 {
     let mut result: U2048 = U2048::from(1);
     base = base % modulus;
@@ -44,7 +43,7 @@ pub fn mul_mod(mut a: U2048, mut b: U2048, modulus: U2048) -> U2048 {
 
 /// Given the xth root of g and yth root of g, finds the xyth root. If the roots are invalid or
 /// x and y are not coprime, None is returned. Otherwise, the function performs relevant modular
-/// inverse operations on the Bezout coefficients (returned as signed integers) and finds the xyth root.
+/// inverse operations on the Bezout coefficients and finds the xyth root.
 pub fn shamir_trick(mut xth_root: U2048, mut yth_root: U2048, x: U2048, y: U2048) -> Option<U2048> {
     // Check if the inputs are valid.
     if mod_exp(xth_root, x, U2048::from_dec_str(super::MODULUS).unwrap())
@@ -57,7 +56,7 @@ pub fn shamir_trick(mut xth_root: U2048, mut yth_root: U2048, x: U2048, y: U2048
             return None;
         },
         Some(coefficients) => {
-            // Receive coefficient as signed integers.
+            // Receive coefficient
             let pair = coefficients;
 
             // Calculate relevant modular inverses to allow for exponentiation later on.
@@ -104,10 +103,6 @@ pub fn bezout(a: U2048, b: U2048) -> Option<BezoutPair> {
 }
 
 /// Implements the Extended Euclidean Algorithm (https://en.wikipedia.org/wiki/Extended_Euclidean_algorithm).
-/// NOTE: I assume that the absolute value of the Bezout coefficients are at most 64 bits(hence 128 bit
-/// signed integers). Otherwise, the function panics during the unwrap.
-/// Reference: https://math.stackexchange.com/questions/670405/does-the-extended-euclidean-algorithm-always-return-the-smallest-coefficients-of
-///
 /// IMPORTANT NOTE: Instead of representing the coefficients as signed integers, I have represented
 /// them as (|a|, sign of a) and (|b|, sign of b). This is because the current project lacks
 /// support for signed BigInts.
@@ -256,7 +251,6 @@ pub fn prime_product(elems: &[U2048]) -> U2048 {
 mod tests {
     use super::*;
     use crate::MODULUS;
-    use codec::{Encode};
 
     #[test]
     fn test_mul_mod() {
