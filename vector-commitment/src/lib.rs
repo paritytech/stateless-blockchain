@@ -32,52 +32,50 @@ pub trait Trait: system::Trait {
 
 // This module's storage items.
 decl_storage! {
-	trait Store for Module<T: Trait> as StatelessAccounts {
-		State get(get_state): U2048 = U2048::from(2);  // Use 2 as an arbitrary generator with "unknown" order.
-		WitnessData: Vec<(U2048, U2048)>;
-        NewKeyValuePairs: Vec<(u8, u8)>
-	}
+    trait Store for Module<T: Trait> as StatelessAccounts {
+        State get(get_state): U2048 = U2048::from(2);  // Use 2 as an arbitrary generator with "unknown" order.
+        WitnessData: Vec<(U2048, U2048)>;
+        NewKeyValuePairs: Vec<(u8, u8)>;
+    }
 }
 
 decl_event!(
-	pub enum Event {
-		TokensMinted(U2048, U2048),
+    pub enum Event {
+        TokensMinted(U2048, U2048),
         Deletion(U2048, U2048, U2048),
         Addition(U2048, U2048, U2048),
-	}
+    }
 );
 
-
-// The module's dispatchable functions.
 decl_module! {
-	/// The module declaration.
-	pub struct Module<T: Trait> for enum Call where origin: T::Origin {
-		fn deposit_event() = default;
-		const KeySpace: u8 = T::KeySpace::get();
+    /// The module declaration.
+    pub struct Module<T: Trait> for enum Call where origin: T::Origin {
+        fn deposit_event() = default;
+        const KeySpace: u8 = T::KeySpace::get();
 
-		pub fn mint(origin, key: u8, amount: u8) -> Result {
-		    ensure_signed(origin)?;
-		    let (state, product) = vc::commit(State::get(), &[key as usize], &[amount]);
-		    State::put(state);
-		    Self::deposit_event(Event::TokensMinted(state, product));
-		    Ok(())
-		}
+        pub fn mint(origin, key: u8, amount: u8) -> Result {
+            ensure_signed(origin)?;
+            let (state, product) = vc::commit(State::get(), &[key as usize], &[amount]);
+            State::put(state);
+            Self::deposit_event(Event::TokensMinted(state, product));
+            Ok(())
+        }
 
-		pub fn add_transaction(origin, transaction: Transaction, old_state: U2048) -> Result {
-		    ensure_signed(origin)?;
-		    // Get the opening of the sender
-		    let (pi_i_sender, pi_e_sender) = transaction.sender_opening;
-		    // Verify that it is valid
-		    ensure!(vc::verify_at_key(old_state, State::get(), transaction.sender_key as usize,
-		    transaction.sender_balance, pi_i_sender, pi_e_sender), "Opening is invalid.");
+        pub fn add_transaction(origin, transaction: Transaction, old_state: U2048) -> Result {
+            ensure_signed(origin)?;
+            // Get the opening of the sender
+            let (pi_i_sender, pi_e_sender) = transaction.sender_opening;
+            // Verify that it is valid
+            ensure!(vc::verify_at_key(old_state, State::get(), transaction.sender_key as usize,
+            transaction.sender_balance, pi_i_sender, pi_e_sender), "Opening is invalid.");
 
-		    // Ensure that the sender isn't spending more than balance
-		    ensure!(transaction.sender_balance >= transaction.amount, "User is trying to spend more than balance.");
+            // Ensure that the sender isn't spending more than balance
+            ensure!(transaction.sender_balance >= transaction.amount, "User is trying to spend more than balance.");
 
-		    // Verify receiver opening
-		    let (pi_i_receiver, pi_e_receiver) = transaction.receiver_opening;
-		    ensure!(vc::verify_at_key(old_state, State::get(), transaction.receiver_key as usize,
-		            transaction.receiver_balance, pi_i_receiver, pi_e_receiver), "Opening is invalid.");
+            // Verify receiver opening
+            let (pi_i_receiver, pi_e_receiver) = transaction.receiver_opening;
+            ensure!(vc::verify_at_key(old_state, State::get(), transaction.receiver_key as usize,
+                    transaction.receiver_balance, pi_i_receiver, pi_e_receiver), "Opening is invalid.");
 
             // Add membership proofs to temporary vector to be processed later
             if let Witness::MemWit(sender_witness) = pi_i_sender {
@@ -93,9 +91,8 @@ decl_module! {
             // Temporarily store the existing key-value pairs
             NewKeyValuePairs::append(&vec![(transaction.sender_key, transaction.sender_balance)]);
             NewKeyValuePairs::append(&vec![(transaction.receiver_key, transaction.receiver_balance)]);
-
-		    Ok(())
-		}
+            Ok(())
+        }
 
         fn on_finalize() {
             // Remove previous key-value commitment.
@@ -123,8 +120,7 @@ decl_module! {
             WitnessData::kill();
             NewKeyValuePairs::kill();
         }
-
-	}
+    }
 }
 
 /// Tests for this module
@@ -139,8 +135,8 @@ mod tests {
     };
 
     impl_outer_origin! {
-		pub enum Origin for Test {}
-	}
+        pub enum Origin for Test {}
+    }
 
     // For testing the module, we construct most of a mock runtime. This means
     // first constructing a configuration type (`Test`) which `impl`s each of the
@@ -148,12 +144,12 @@ mod tests {
     #[derive(Clone, Eq, PartialEq)]
     pub struct Test;
     parameter_types! {
-		pub const BlockHashCount: u64 = 250;
-		pub const MaximumBlockWeight: Weight = 1024;
-		pub const MaximumBlockLength: u32 = 2 * 1024;
-		pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
-		pub const KeySpace: u8 = 255;
-	}
+        pub const BlockHashCount: u64 = 250;
+        pub const MaximumBlockWeight: Weight = 1024;
+        pub const MaximumBlockLength: u32 = 2 * 1024;
+        pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
+        pub const KeySpace: u8 = 255;
+    }
 
     impl system::Trait for Test {
         type Origin = Origin;
@@ -185,8 +181,4 @@ mod tests {
     fn new_test_ext() -> runtime_io::TestExternalities<Blake2Hasher> {
         system::GenesisConfig::default().build_storage::<Test>().unwrap().into()
     }
-
-
-
-
 }
