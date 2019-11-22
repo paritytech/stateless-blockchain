@@ -6,7 +6,7 @@
 use support::{decl_module, decl_storage, decl_event, ensure, dispatch::Result, StorageValue, traits::Get};
 use system::ensure_signed;
 use codec::{Encode, Decode};
-use accumulator::{U2048, Witness};
+use accumulator::*;
 pub mod binary;
 pub mod vc;
 
@@ -34,7 +34,7 @@ pub trait Trait: system::Trait {
 decl_storage! {
     trait Store for Module<T: Trait> as StatelessAccounts {
         State get(get_state): U2048 = U2048::from(2);  // Use 2 as an arbitrary generator with "unknown" order.
-        WitnessData: Vec<(U2048, U2048)>;
+        WitnessData get(get_witness_data): Vec<(U2048, U2048)>;
         NewKeyValuePairs: Vec<(u8, u8)>;
     }
 }
@@ -53,6 +53,8 @@ decl_module! {
         fn deposit_event() = default;
         const KeySpace: u8 = T::KeySpace::get();
 
+        /// Arbitrarily add a new key-value store to the accumulator.
+        /// NOTE: The key must not exist initially.
         pub fn mint(origin, key: u8, amount: u8) -> Result {
             ensure_signed(origin)?;
             let (state, product) = vc::commit(State::get(), &[key as usize], &[amount]);
@@ -61,10 +63,15 @@ decl_module! {
             Ok(())
         }
 
+        /// Submit a transaction to the chain.
+        /// NOTE: All transactions must be referenced from the same previous "state". In practice,
+        /// this might be the state of the previous block for example. This is a workaround to
+        /// prevent having to pass in the product of all of the elements in the accumulator.
         pub fn add_transaction(origin, transaction: Transaction, old_state: U2048) -> Result {
             ensure_signed(origin)?;
             // Get the opening of the sender
             let (pi_i_sender, pi_e_sender) = transaction.sender_opening;
+
             // Verify that it is valid
             ensure!(vc::verify_at_key(old_state, State::get(), transaction.sender_key as usize,
             transaction.sender_balance, pi_i_sender, pi_e_sender), "Opening is invalid.");
@@ -88,9 +95,9 @@ decl_module! {
 
             // Currently omitting non-membership proofs for simplicity
 
-            // Temporarily store the existing key-value pairs
-            NewKeyValuePairs::append(&vec![(transaction.sender_key, transaction.sender_balance)]);
-            NewKeyValuePairs::append(&vec![(transaction.receiver_key, transaction.receiver_balance)]);
+            // Temporarily store the new key-value pairs
+            NewKeyValuePairs::append(&vec![(transaction.sender_key, transaction.sender_balance-transaction.amount)]);
+            NewKeyValuePairs::append(&vec![(transaction.receiver_key, transaction.receiver_balance+transaction.amount)]);
             Ok(())
         }
 
@@ -99,6 +106,7 @@ decl_module! {
             let (state, product, proof) = accumulator::batch_delete(State::get(), &WitnessData::get());
             Self::deposit_event(Event::Deletion(state, product, proof));
 
+            // Get the integer representations of the new key-value pairs.
             let elems: Vec<U2048> = NewKeyValuePairs::get()
                 .into_iter()
                 .enumerate()
@@ -128,10 +136,11 @@ decl_module! {
 mod tests {
     use super::*;
 
+    use runtime_io::with_externalities;
     use primitives::{H256, Blake2Hasher};
     use support::{impl_outer_origin, assert_ok, parameter_types};
     use sr_primitives::{
-        traits::{BlakeTwo256, IdentityLookup}, testing::Header, weights::Weight, Perbill,
+        traits::{BlakeTwo256, IdentityLookup, OnFinalize}, testing::Header, weights::Weight, Perbill,
     };
 
     impl_outer_origin! {
@@ -174,11 +183,94 @@ mod tests {
         type Event = ();
         type KeySpace = KeySpace;
     }
+
     type StatelessAccounts = Module<Test>;
+    type System = system::Module<Test>;
 
     // This function basically just builds a genesis storage key/value store according to
     // our desired mockup.
     fn new_test_ext() -> runtime_io::TestExternalities<Blake2Hasher> {
         system::GenesisConfig::default().build_storage::<Test>().unwrap().into()
+    }
+
+    #[test]
+    fn test_mint() {
+        with_externalities(&mut new_test_ext(), || {
+            let key: u8 = 1;
+            let value: u8 = 10;
+            StatelessAccounts::mint(Origin::signed(1), key, value);
+
+            let (binary_vec, indices) = vc::convert_key_value(&[key as usize], &[value]);
+            let (p_ones, _) = binary::get_bit_elems(&binary_vec, &indices);
+            assert_eq!(StatelessAccounts::get_state(), subroutines::mod_exp(U2048::from(2), p_ones, U2048::from_dec_str(MODULUS).unwrap()));
+        });
+    }
+
+    #[test]
+    fn test_transaction() {
+        with_externalities(&mut new_test_ext(), || {
+            let generator = StatelessAccounts::get_state();
+
+            // Define keys for alice and bob
+            let alice_key: u8 = 12;
+            let bob_key: u8 = 58;
+
+            // Define balances for alice and bob
+            let alice_balance: u8 = 10;
+            let bob_balance: u8 = 5;
+
+            // Mint tokens for each user
+            StatelessAccounts::mint(Origin::signed(1), alice_key, alice_balance);
+            StatelessAccounts::mint(Origin::signed(1), bob_key, bob_balance);
+
+            // Derive integer representations for manual testing
+            let alice_elem = vc::get_key_value_elem(alice_key as usize, alice_balance);  // This value would be received from the emitted event.
+            let bob_elem = vc::get_key_value_elem(bob_key as usize, bob_balance);   // This value would be received from the emitted event.
+            let product = alice_elem * bob_elem;
+
+            // Get state after minting
+            let state_after_mint = StatelessAccounts::get_state();
+
+            // Get openings for each user
+            let (alice_pi_i, alice_pi_e) = vc::open_at_key(generator, product, alice_key as usize, alice_balance);
+            let (bob_pi_i, bob_pi_e) = vc::open_at_key(generator, product, bob_key as usize, bob_balance);
+
+            // Construct transaction
+            let transaction = Transaction {
+                sender_key: alice_key,
+                sender_balance: alice_balance,
+                sender_elem: alice_elem,
+                sender_opening: (alice_pi_i, alice_pi_e),
+                receiver_key: bob_key,
+                receiver_balance: bob_balance,
+                receiver_elem: bob_elem,
+                receiver_opening: (bob_pi_i, bob_pi_e),
+                amount: 3,
+            };
+
+            // Submit transaction
+            StatelessAccounts::add_transaction(Origin::signed(1), transaction, generator);
+
+            // Manually get the state after deletion for manual testing
+            let (state_after_del, _, _) = batch_delete(state_after_mint, &StatelessAccounts::get_witness_data());
+
+            // Finalize block
+            StatelessAccounts::on_finalize(System::block_number());
+
+            // Get the new state
+            let new_state = StatelessAccounts::get_state();
+
+            // Derive integer representations for alice and bob's new key-value stores
+            let new_alice_elem = vc::get_key_value_elem(alice_key as usize, alice_balance-3);  // This value would be received from the emitted event.
+            let new_bob_elem = vc::get_key_value_elem(bob_key as usize, bob_balance+3);  // This value would be received from the emitted event.
+
+            // Create openings with the new balances
+            let (alice_pi_i_new, alice_pi_e_new) = vc::open_at_key(state_after_del, new_alice_elem*new_bob_elem, alice_key as usize, alice_balance-3);
+            let (bob_pi_i_new, bob_pi_e_new) = vc::open_at_key(state_after_del, new_alice_elem*new_bob_elem, bob_key as usize, bob_balance+3);
+
+            // Verify that the openings are valid
+            assert_eq!(vc::verify_at_key(state_after_del, new_state, alice_key as usize, alice_balance-3, alice_pi_i_new, alice_pi_e_new), true);
+            assert_eq!(vc::verify_at_key(state_after_del, new_state, bob_key as usize, bob_balance+3, bob_pi_i_new, bob_pi_e_new), true);
+        });
     }
 }

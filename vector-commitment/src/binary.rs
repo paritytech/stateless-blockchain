@@ -4,6 +4,7 @@
 use accumulator::*;
 use accumulator::witnesses;
 use rstd::prelude::Vec;
+use runtime_io;
 
 /// Commit a vector of bits(represented as bool array) to an accumulator. The second value of
 /// the returned tuple is the product of the accumulated elements.

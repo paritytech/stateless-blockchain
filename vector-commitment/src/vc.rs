@@ -55,6 +55,14 @@ pub fn to_binary(elem: ValueType) -> Vec<bool> {
     return bv.iter().collect::<Vec<bool>>();
 }
 
+/// Quick helper function that gets the product of the accumulated elements for a given
+/// key-value pair.
+pub fn get_key_value_elem(key: usize, value: ValueType) -> U2048 {
+    let (binary_vec, indices) = convert_key_value(&[key], &[value]);
+    let (elem, _) = binary::get_bit_elems(&binary_vec, &indices);
+    return elem;
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -105,6 +113,18 @@ mod tests {
         assert_eq!(verify_at_key(accumulator, new_accumulator, 1, 7, pi_i, pi_e), true);
         assert_eq!(verify_at_key(accumulator, new_accumulator, 0, 7, pi_i, pi_e), false);
         assert_eq!(verify_at_key(accumulator, new_accumulator, 1, 4, pi_i, pi_e), false);
+    }
+
+    #[test]
+    fn test_get_key_value_elem() {
+        let (key, value): (usize, u8) = (0, 5);
+        let elem = get_key_value_elem(key, value);
+
+        let bv = to_binary(value);
+        let indices: Vec<usize> = (0..8).collect();
+        let (state, _) = binary::commit(U2048::from(2), &bv, &indices);
+
+        assert_eq!(state, subroutines::mod_exp(U2048::from(2), elem, U2048::from_dec_str(MODULUS).unwrap()))
     }
 
 }
